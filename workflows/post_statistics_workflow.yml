@@ -1,0 +1,54 @@
+name: "Post Statistics Dashboard"
+include_configs:
+  - "workflows/configs/api_config.yaml"
+
+steps:
+  - id: "load_all_posts"  # ← ДОБАВЬТЕ ДЕФИС И id
+    type: "task"
+    name: "Load All Posts"
+    config:
+      module: "FpLab4.Steps.HttpStep"
+      method: "GET"
+      url: "{{base_url}}/api/posts"
+      headers:
+        Authorization: "Bearer {{auth_token}}"
+        Content-Type: "application/json"
+    on_success:
+      save_response: "all_posts"
+
+  - id: "analyze_posts_statistics"
+    type: "parallel"
+    steps:
+      - id: "count_posts"  # ← ДЕФИС И id
+        type: "task"
+        name: "Count Posts"
+        config:
+          module: "FpLab4.Steps.StatisticsStep"
+          function: "count_items"
+          input: "{{all_posts}}"
+          item_name: "posts"
+        on_success:
+          save_result: "posts_count"
+
+      - id: "get_latest_post"
+        type: "task"
+        name: "Get Latest Post"
+        config:
+          module: "FpLab4.Steps.StatisticsStep"
+          function: "get_latest"
+          input: "{{all_posts}}"
+          date_field: "createdAt"
+        on_success:
+          save_result: "latest_post"
+
+      - id: "get_popular_posts"
+        type: "task"
+        name: "Get Popular Posts"
+        config:
+          module: "FpLab4.Steps.StatisticsStep"
+          function: "get_top_n"
+          input: "{{all_posts}}"
+          field: "likesCount"
+          n: 5
+        on_success:
+          save_result: "top_posts"

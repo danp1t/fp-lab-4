@@ -1,0 +1,133 @@
+name: "User Roles Statistics"
+include_configs:
+  - "workflows/configs/api_config.yaml"
+
+steps:
+  load_all_accounts:
+    type: task
+    config:
+      module: "FpLab4.Steps.HttpStep"
+      method: "GET"
+      url: "{{base_url}}/api/accounts"
+      headers:
+        Authorization: "Bearer {{admin_token}}"
+        Content-Type: "application/json"
+    on_success:
+      save_response: "all_accounts"
+
+  analyze_accounts:
+    type: parallel
+    steps:
+      count_total_users:
+        type: task
+        config:
+          module: "FpLab4.Steps.StatisticsStep"
+          function: "count_items"
+          input: "{{all_accounts}}"
+          item_name: "users"
+        on_success:
+          save_result: "total_users"
+
+      get_active_users:
+        type: task
+        config:
+          module: "FpLab4.Steps.StatisticsStep"
+          function: "filter_by_field"
+          input: "{{all_accounts}}"
+          field: "isActive"
+          value: true
+        on_success:
+          save_result: "active_users"
+
+      get_registration_stats:
+        type: task
+        config:
+          module: "FpLab4.Steps.StatisticsStep"
+          function: "group_by_date"
+          input: "{{all_accounts}}"
+          date_field: "createdAt"
+          interval: "month"
+        on_success:
+          save_result: "registration_stats"
+
+  fetch_role_details:
+    type: sequential
+    steps:
+      get_accounts_with_roles:
+        type: parallel
+        steps:
+          - type: task
+            config:
+              module: "FpLab4.Steps.HttpStep"
+              method: "GET"
+              url: "{{base_url}}/api/accounts/{{all_accounts[0].id}}/detail"
+              headers:
+                Authorization: "Bearer {{admin_token}}"
+                Content-Type: "application/json"
+            on_success:
+              save_response: "account_details_1"
+
+          - type: task
+            config:
+              module: "FpLab4.Steps.HttpStep"
+              method: "GET"
+              url: "{{base_url}}/api/accounts/{{all_accounts[1].id}}/detail"
+              headers:
+                Authorization: "Bearer {{admin_token}}"
+                Content-Type: "application/json"
+            on_success:
+              save_response: "account_details_2"
+
+          - type: task
+            config:
+              module: "FpLab4.Steps.HttpStep"
+              method: "GET"
+              url: "{{base_url}}/api/accounts/{{all_accounts[2].id}}/detail"
+              headers:
+                Authorization: "Bearer {{admin_token}}"
+                Content-Type: "application/json"
+            on_success:
+              save_response: "account_details_3"
+
+      analyze_role_distribution:
+        type: task
+        config:
+          module: "FpLab4.Steps.StatisticsStep"
+          function: "extract_roles"
+          inputs:
+            - "{{account_details_1}}"
+            - "{{account_details_2}}"
+            - "{{account_details_3}}"
+        on_success:
+          save_result: "role_samples"
+
+  generate_role_report:
+    type: task
+    config:
+      module: "FpLab4.Steps.ReportStep"
+      function: "generate_role_report"
+      inputs:
+        total_users: "{{total_users}}"
+        active_users_count: "{{active_users|length}}"
+        registration_stats: "{{registration_stats}}"
+        role_samples: "{{role_samples}}"
+    on_success:
+      save_result: "role_report"
+
+  export_statistics:
+    type: parallel
+    steps:
+      save_to_json:
+        type: task
+        config:
+          module: "FpLab4.Steps.ExportStep"
+          function: "save_json"
+          data: "{{role_report}}"
+          filename: "role_statistics_#{timestamp}.json"
+
+      print_summary:
+        type: task
+        config:
+          module: "FpLab4.Steps.DisplayStep"
+          function: "print_summary"
+          report: "{{role_report}}"

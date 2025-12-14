@@ -1,0 +1,9 @@
+name: "Test Simple"
+steps:
+  - id: "step1"
+    type: "task"
+    name: "Test Display"
+    config:
+      module: "FpLab4.Steps.DisplayStep"
+      function: "show_dashboard"
+      report: "Test Report"

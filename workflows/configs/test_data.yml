@@ -1,0 +1,15 @@
+test_user:
+  name: "Test User"
+  email: "test#{timestamp}@example.com"
+  password: "password123"
+
+test_product:
+  name: "Test Product"
+  description: "Test product description"
+  category: "TestCategory"
+  base_price: 1000
+
+test_post:
+  title: "Test Post"
+  text: "Test post content"
+  owner_id: 2

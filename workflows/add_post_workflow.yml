@@ -1,0 +1,158 @@
+name: "Add Post to Feed"
+include_configs:
+  - "workflows/configs/api_config.yaml"
+  - "workflows/configs/test_data.yaml"
+
+steps:
+  prepare_post_content:
+    type: task
+    config:
+      module: "FpLab4.Steps.ContentStep"
+      function: "generate_post_content"
+      parameters:
+        title_template: "{{test_post.title}} - #{timestamp}"
+        text: "{{test_post.text}}"
+        tags:
+          - "news"
+          - "update"
+          - "announcement"
+    on_success:
+      save_result: "post_content"
+
+  create_post:
+    type: task
+    config:
+      module: "FpLab4.Steps.HttpStep"
+      method: "POST"
+      url: "{{base_url}}/api/posts"
+      headers:
+        Authorization: "Bearer {{auth_token}}"
+        Content-Type: "application/json"
+      body:
+        title: "{{post_content.title}}"
+        text: "{{post_content.text}}"
+        ownerId: "{{test_post.owner_id}}"
+        tags: "{{post_content.tags}}"
+    on_success:
+      save_post_id: "post_id"
+
+  enhance_post:
+    type: parallel
+    steps:
+      add_attachment:
+        type: task
+        config:
+          module: "FpLab4.Steps.HttpStep"
+          method: "POST"
+          url: "{{base_url}}/api/attachments"
+          headers:
+            Authorization: "Bearer {{auth_token}}"
+            Content-Type: "application/json"
+          body:
+            postId: "{{post_id}}"
+            name: "post_image.jpg"
+            path: "/uploads/post_#{timestamp}.jpg"
+            typeAttachmentId: 1
+        on_success:
+          save_response: "attachment_info"
+
+      add_initial_like:
+        type: task
+        config:
+          module: "FpLab4.Steps.HttpStep"
+          method: "POST"
+          url: "{{base_url}}/api/posts/{{post_id}}/like"
+          headers:
+            Authorization: "Bearer {{auth_token}}"
+            Content-Type: "application/json"
+        on_success:
+          save_response: "like_info"
+
+      add_first_comment:
+        type: task
+        config:
+          module: "FpLab4.Steps.HttpStep"
+          method: "POST"
+          url: "{{base_url}}/api/comments"
+          headers:
+            Authorization: "Bearer {{auth_token}}"
+            Content-Type: "application/json"
+          body:
+            userComment: "Great post! Looking forward to more content like this."
+            postId: "{{post_id}}"
+            accountId: "{{test_post.owner_id}}"
+            createdAt: "#{current_datetime}"
+        on_success:
+          save_response: "comment_info"
+
+  verify_post_publication:
+    type: sequential
+    steps:
+      check_post_visibility:
+        type: task
+          config:
+            module: "FpLab4.Steps.HttpStep"
+            method: "GET"
+            url: "{{base_url}}/api/posts/{{post_id}}"
+            headers:
+              Authorization: "Bearer {{auth_token}}"
+              Content-Type: "application/json"
+          on_success:
+            save_response: "published_post"
+
+      check_feed_inclusion:
+        type: task
+        config:
+          module: "FpLab4.Steps.HttpStep"
+          method: "GET"
+          url: "{{base_url}}/api/posts"
+          headers:
+            Authorization: "Bearer {{auth_token}}"
+            Content-Type: "application/json"
+        on_success:
+          save_response: "current_feed"
+
+  analyze_post_performance:
+    type: task
+    config:
+      module: "FpLab4.Steps.AnalyticsStep"
+      function: "analyze_post_engagement"
+      inputs:
+        post_data: "{{published_post}}"
+        feed_data: "{{current_feed}}"
+        interactions:
+          likes: "{{like_info}}"
+          comments: "{{comment_info}}"
+          attachments: "{{attachment_info}}"
+    on_success:
+      save_result: "post_analytics"
+
+  share_post:
+    type: parallel
+    steps:
+      notify_followers:
+        type: task
+        config:
+          module: "FpLab4.Steps.NotificationStep"
+          function: "notify_new_post"
+          post_id: "{{post_id}}"
+          analytics: "{{post_analytics}}"
+
+      update_content_calendar:
+        type: task
+        config:
+          module: "FpLab4.Steps.ContentStep"
+          function: "update_calendar"
+          post_id: "{{post_id}}"
+          schedule: "next"
+
+      generate_share_links:
+        type: task
+        config:
+          module: "FpLab4.Steps.ContentStep"
+          function: "generate_share_links"
+          post_id: "{{post_id}}"
+          platforms:
+            - "twitter"
+            - "facebook"
+            - "linkedin"
