@@ -1,11 +1,11 @@
-name: "Post Statistics Dashboard"
+name: "Сбор статистики по посту"
 include_configs:
   - "workflows/configs/api_config.yaml"
 
 steps:
-  - id: "load_all_posts"  # ← ДОБАВЬТЕ ДЕФИС И id
+  - id: "load_all_posts"
     type: "task"
-    name: "Load All Posts"
+    name: "Загрузка всех постов"
     config:
       module: "FpLab4.Steps.HttpStep"
       method: "GET"
@@ -19,9 +19,9 @@ steps:
   - id: "analyze_posts_statistics"
     type: "parallel"
     steps:
-      - id: "count_posts"  # ← ДЕФИС И id
+      - id: "count_posts"
         type: "task"
-        name: "Count Posts"
+        name: "Количество постов"
         config:
           module: "FpLab4.Steps.StatisticsStep"
           function: "count_items"
@@ -32,7 +32,7 @@ steps:
 
       - id: "get_latest_post"
         type: "task"
-        name: "Get Latest Post"
+        name: "Получить последний пост"
         config:
           module: "FpLab4.Steps.StatisticsStep"
           function: "get_latest"
@@ -43,7 +43,7 @@ steps:
 
       - id: "get_popular_posts"
         type: "task"
-        name: "Get Popular Posts"
+        name: "Получить самый популярный пост"
         config:
           module: "FpLab4.Steps.StatisticsStep"
           function: "get_top_n"

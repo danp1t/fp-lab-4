@@ -1,4 +1,4 @@
-name: "Add Product to Store"
+name: "Добавление товара в интернет-магазин"
 include_configs:
   - "workflows/configs/api_config.yaml"
   - "workflows/configs/test_data.yaml"
@@ -143,13 +143,3 @@ steps:
         stock: "{{stock_info}}"
     on_success:
       save_result: "product_report"
-
-  notify_team:
-    type: task
-    config:
-      module: "FpLab4.Steps.NotificationStep"
-      function: "send_product_added_notification"
-      report: "{{product_report}}"
-      recipients:
-        - "inventory@example.com"
-        - "sales@example.com"

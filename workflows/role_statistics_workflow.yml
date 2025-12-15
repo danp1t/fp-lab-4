@@ -1,4 +1,4 @@
-name: "User Roles Statistics"
+name: "Статистика по ролям пользователей"
 include_configs:
   - "workflows/configs/api_config.yaml"
 

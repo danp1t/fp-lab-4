@@ -1,4 +1,4 @@
-name: "Add Post to Feed"
+name: "Добавление поста в ленту"
 include_configs:
   - "workflows/configs/api_config.yaml"
   - "workflows/configs/test_data.yaml"
@@ -78,7 +78,7 @@ steps:
             Authorization: "Bearer {{auth_token}}"
             Content-Type: "application/json"
           body:
-            userComment: "Great post! Looking forward to more content like this."
+            userComment: "Опа. Пост создан с помощью оркестратора."
             postId: "{{post_id}}"
             accountId: "{{test_post.owner_id}}"
             createdAt: "#{current_datetime}"
@@ -126,33 +126,3 @@ steps:
           attachments: "{{attachment_info}}"
     on_success:
       save_result: "post_analytics"
-
-  share_post:
-    type: parallel
-    steps:
-      notify_followers:
-        type: task
-        config:
-          module: "FpLab4.Steps.NotificationStep"
-          function: "notify_new_post"
-          post_id: "{{post_id}}"
-          analytics: "{{post_analytics}}"
-
-      update_content_calendar:
-        type: task
-        config:
-          module: "FpLab4.Steps.ContentStep"
-          function: "update_calendar"
-          post_id: "{{post_id}}"
-          schedule: "next"
-
-      generate_share_links:
-        type: task
-        config:
-          module: "FpLab4.Steps.ContentStep"
-          function: "generate_share_links"
-          post_id: "{{post_id}}"
-          platforms:
-            - "twitter"
-            - "facebook"
-            - "linkedin"
