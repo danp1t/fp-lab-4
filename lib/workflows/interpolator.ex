@@ -5,6 +5,8 @@ defmodule Workflows.Interpolator do
   - {{variable}} - переменные из контекста
   - \#{function()} - функции (timestamp, current_datetime, random_int и т.д.)
   - Математические выражения в {{...}}
+  - Доступ к элементам массива: {{array[0]}}
+  - Доступ к полям объектов: {{object.field}} или {{array[0].field}}
   """
 
   @doc """
@@ -14,10 +16,17 @@ defmodule Workflows.Interpolator do
     # Проверяем, не является ли строка исключительно переменной
     trimmed = String.trim(value)
 
-    case Regex.run(~r/^\{\{\s*(\w+)\s*\}\}$/, trimmed) do
-      [_, var_name] ->
-        # Это переменная целиком, возвращаем значение как есть
-        get_var_value(var_name, context)
+    case Regex.run(~r/^\{\{\s*([^}]+)\s*\}\}$/, trimmed) do
+      [_, expr] ->
+        # Это выражение целиком, пытаемся получить его значение
+        case get_nested_value(expr, context) do
+          nil -> ""
+          val when is_binary(val) -> val
+          val when is_number(val) -> to_string(val)
+          val when is_list(val) -> inspect(val)
+          val when is_map(val) -> inspect(val)
+          val -> inspect(val)
+        end
       _ ->
         # Иначе интерполируем как обычную строку
         interpolate_string(value, context)
@@ -46,7 +55,6 @@ defmodule Workflows.Interpolator do
     string
     |> interpolate_functions()
     |> interpolate_expressions(context)
-    |> interpolate_variables(context)
   end
 
   # Интерполяция функций типа #{timestamp}
@@ -102,28 +110,58 @@ defmodule Workflows.Interpolator do
 
   defp execute_function(_, _), do: :error
 
-  # Интерполяция математических выражений в {{...}}
+  # Интерполяция всех выражений в {{...}} (переменные, пути, математика)
   defp interpolate_expressions(string, context) do
     Regex.replace(~r/\{\{\s*([^}]+)\s*\}\}/, string, fn _match, expr ->
       case evaluate_expression(expr, context) do
-        {:ok, result} -> to_string(result)
-        :error -> "{{#{expr}}}"
+        {:ok, result} ->
+          to_string(result)
+        :error ->
+          # Если не удалось вычислить, пытаемся получить как вложенное значение
+          case get_nested_value(expr, context) do
+            nil -> "{{#{expr}}}"
+            value ->
+              case value do
+                v when is_binary(v) -> v
+                v when is_number(v) -> to_string(v)
+                v when is_list(v) -> inspect(v)
+                v when is_map(v) -> inspect(v)
+                v -> inspect(v)
+              end
+          end
       end
     end)
   end
 
   defp evaluate_expression(expr, context) do
+    # Проверяем, является ли выражение математическим (содержит операторы)
+    if contains_operator?(expr) do
+      evaluate_math_expression(expr, context)
+    else
+      # Не математическое выражение, просто возвращаем значение
+      case get_nested_value(expr, context) do
+        nil -> :error
+        value -> {:ok, value}
+      end
+    end
+  end
+
+  defp contains_operator?(expr) do
+    Regex.match?(~r/[\+\-\*\/]/, expr)
+  end
+
+  defp evaluate_math_expression(expr, context) do
     try do
-      # Заменяем переменные на их значения
-      expr_with_values = Regex.replace(~r/\b(\w+)\b/, expr, fn _match, var_name ->
-        case get_var_value(var_name, context) do
-          nil -> var_name
+      # Заменяем все переменные в выражении на их значения
+      expr_with_values = Regex.replace(~r/([a-zA-Z_][a-zA-Z0-9_.\[\]]*)/, expr, fn match, var_path ->
+        case get_nested_value(var_path, context) do
+          nil -> match  # Оставляем как есть, если не нашли
           value when is_number(value) -> to_string(value)
-          value -> inspect(value)
+          _ -> match  # Оставляем как есть для не-чисел
         end
       end)
 
-      # Вычисляем выражение (только безопасные математические операции)
+      # Вычисляем математическое выражение
       {result, _} = Code.eval_string(expr_with_values, [])
       {:ok, result}
     rescue
@@ -131,28 +169,40 @@ defmodule Workflows.Interpolator do
     end
   end
 
-  defp get_var_value(var_name, context) do
-    # Пробуем получить как атом, потом как строку
-    case Map.get(context, String.to_atom(var_name)) do
-      nil -> Map.get(context, var_name)
-      value -> value
-    end
+  # Получение вложенного значения по пути типа "all_accounts[0].id"
+  defp get_nested_value(path, context) do
+    path
+    |> String.trim()
+    |> String.split(".")
+    |> Enum.reduce(context, fn
+      segment, acc when is_map(acc) ->
+        # Проверяем, содержит ли сегмент доступ к массиву
+        case Regex.run(~r/([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]/, segment) do
+          [_, array_name, index_str] ->
+            # Доступ к элементу массива: array[index]
+            array = get_from_context(array_name, acc)
+            if is_list(array) do
+              index = String.to_integer(index_str)
+              if index < length(array), do: Enum.at(array, index), else: nil
+            else
+              nil
+            end
+          nil ->
+            # Простой доступ к полю
+            get_from_context(segment, acc)
+        end
+      _, _ -> nil
+    end)
   end
 
-  # Интерполяция простых переменных {{variable}}
-  defp interpolate_variables(string, context) do
-    Regex.replace(~r/\{\{(\w+)\}\}/, string, fn _match, var_name ->
-      value = get_var_value(var_name, context)
+  defp get_from_context(key, context) do
+    # Пробуем получить как атом, потом как строку
+    atom_key = String.to_atom(key)
+    Map.get(context, atom_key) || Map.get(context, key)
+  end
 
-      case value do
-        nil -> ""
-        value when is_binary(value) -> value
-        value when is_number(value) -> to_string(value)
-        value when is_list(value) -> inspect(value)
-        value when is_map(value) -> inspect(value)
-        {:ok, data} -> to_string(data)
-        _ -> inspect(value)
-      end
-    end)
+  # Старая функция для обратной совместимости
+  defp get_var_value(var_name, context) do
+    get_from_context(var_name, context)
   end
 end

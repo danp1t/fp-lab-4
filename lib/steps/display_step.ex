@@ -24,6 +24,13 @@ defmodule FpLab4.Steps.DisplayStep do
         IO.puts("   Name: #{report["name"]}")
         IO.puts("   Stock Total: #{report["stock_total"]}")
 
+      %{"report_type" => "role_statistics"} = report ->
+        IO.puts("👥 Role Statistics Report")
+        IO.puts("   Total Users: #{report["total_users"]}")
+        IO.puts("   Active Users: #{report["active_users_count"]}")
+        IO.puts("   Unique Roles: #{length(report["role_samples"])}")
+        IO.puts("   Roles Found: #{Enum.join(report["role_samples"], ", ")}")
+
       _ ->
         IO.puts("📋 Report:")
         IO.inspect(report, limit: :infinity, printable_limit: :infinity)
@@ -44,6 +51,10 @@ defmodule FpLab4.Steps.DisplayStep do
     case report do
       %{"total_users" => total, "active_users_count" => active} ->
         IO.puts("👥 Users: #{total} total, #{active} active")
+        IO.puts("🎭 Roles Found: #{length(report["role_samples"])}")
+        if length(report["role_samples"]) > 0 do
+          IO.puts("   #{Enum.join(report["role_samples"], ", ")}")
+        end
         IO.puts("📅 Registration Stats:")
         if is_map(report["registration_stats"]) do
           Enum.each(report["registration_stats"], fn {month, count} ->

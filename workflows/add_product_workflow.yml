@@ -4,8 +4,9 @@ include_configs:
   - "workflows/configs/test_data.yaml"
 
 steps:
-  check_permissions:
-    type: task
+  - id: "check_permissions"
+    type: "task"
+    name: "Проверка прав доступа"
     config:
       module: "FpLab4.Steps.HttpStep"
       method: "GET"
@@ -16,8 +17,9 @@ steps:
     on_success:
       save_response: "user_details"
 
-  create_product:
-    type: task
+  - id: "create_product"
+    type: "task"
+    name: "Создание товара"
     config:
       module: "FpLab4.Steps.HttpStep"
       method: "POST"
@@ -32,13 +34,15 @@ steps:
         basePrice: "{{test_product.base_price}}"
         popularity: 0
     on_success:
-      save_product_id: "product_id"
+      save_response: "product_response"
 
-  add_product_variants:
-    type: parallel
+  - id: "add_product_variants"
+    type: "parallel"
+    name: "Добавление вариантов товара"
     steps:
-      add_small_size:
-        type: task
+      - id: "add_small_size"
+        type: "task"
+        name: "Добавление размера S"
         config:
           module: "FpLab4.Steps.HttpStep"
           method: "POST"
@@ -47,15 +51,16 @@ steps:
             Authorization: "Bearer {{auth_token}}"
             Content-Type: "application/json"
           body:
-            productId: "{{product_id}}"
+            productId: "{{product_response.id}}"
             sizeName: "S"
             countItems: 15
             price: "{{test_product.base_price}}"
         on_success:
           save_response: "variant_small"
 
-      add_medium_size:
-        type: task
+      - id: "add_medium_size"
+        type: "task"
+        name: "Добавление размера M"
         config:
           module: "FpLab4.Steps.HttpStep"
           method: "POST"
@@ -64,15 +69,16 @@ steps:
             Authorization: "Bearer {{auth_token}}"
             Content-Type: "application/json"
           body:
-            productId: "{{product_id}}"
+            productId: "{{product_response.id}}"
             sizeName: "M"
             countItems: 25
             price: "{{test_product.base_price}} * 1.1"
         on_success:
           save_response: "variant_medium"
 
-      add_large_size:
-        type: task
+      - id: "add_large_size"
+        type: "task"
+        name: "Добавление размера L"
         config:
           module: "FpLab4.Steps.HttpStep"
           method: "POST"
@@ -81,59 +87,60 @@ steps:
             Authorization: "Bearer {{auth_token}}"
             Content-Type: "application/json"
           body:
-            productId: "{{product_id}}"
+            productId: "{{product_response.id}}"
             sizeName: "L"
             countItems: 10
             price: "{{test_product.base_price}} * 1.2"
         on_success:
           save_response: "variant_large"
 
-  verify_product_creation:
-    type: sequential
-    steps:
-      check_product_listing:
-        type: task
-        config:
-          module: "FpLab4.Steps.HttpStep"
-          method: "GET"
-          url: "{{base_url}}/api/products/{{product_id}}"
-          headers:
-            Authorization: "Bearer {{auth_token}}"
-            Content-Type: "application/json"
-        on_success:
-          save_response: "product_details"
+  - id: "check_product_listing"
+    type: "task"
+    name: "Проверка листинга товара"
+    config:
+      module: "FpLab4.Steps.HttpStep"
+      method: "GET"
+      url: "{{base_url}}/api/products/{{product_response.id}}"
+      headers:
+        Authorization: "Bearer {{auth_token}}"
+        Content-Type: "application/json"
+    on_success:
+      save_response: "product_details"
 
-      check_availability:
-        type: task
-        config:
-          module: "FpLab4.Steps.HttpStep"
-          method: "GET"
-          url: "{{base_url}}/api/products/{{product_id}}/availability"
-          headers:
-            Authorization: "Bearer {{auth_token}}"
-            Content-Type: "application/json"
-        on_success:
-          save_response: "availability_info"
+  - id: "check_availability"
+    type: "task"
+    name: "Проверка доступности"
+    config:
+      module: "FpLab4.Steps.HttpStep"
+      method: "GET"
+      url: "{{base_url}}/api/products/{{product_response.id}}/availability"
+      headers:
+        Authorization: "Bearer {{auth_token}}"
+        Content-Type: "application/json"
+    on_success:
+      save_response: "availability_info"
 
-      check_stock_levels:
-        type: task
-        config:
-          module: "FpLab4.Steps.HttpStep"
-          method: "GET"
-          url: "{{base_url}}/api/product-infos/product/{{product_id}}"
-          headers:
-            Authorization: "Bearer {{auth_token}}"
-            Content-Type: "application/json"
-        on_success:
-          save_response: "stock_info"
+  - id: "check_stock_levels"
+    type: "task"
+    name: "Проверка уровней запасов"
+    config:
+      module: "FpLab4.Steps.HttpStep"
+      method: "GET"
+      url: "{{base_url}}/api/product-infos/product/{{product_response.id}}"
+      headers:
+        Authorization: "Bearer {{auth_token}}"
+        Content-Type: "application/json"
+    on_success:
+      save_response: "stock_info"
 
-  generate_product_report:
-    type: task
+  - id: "generate_product_report"
+    type: "task"
+    name: "Генерация отчета по товару"
     config:
       module: "FpLab4.Steps.ReportStep"
       function: "generate_product_report"
       inputs:
-        product_id: "{{product_id}}"
+        product_id: "{{product_response.id}}"
         product_details: "{{product_details}}"
         variants:
           - "{{variant_small}}"

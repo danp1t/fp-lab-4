@@ -4,8 +4,9 @@ include_configs:
   - "workflows/configs/test_data.yaml"
 
 steps:
-  prepare_post_content:
-    type: task
+  - id: "prepare_post_content"
+    type: "task"
+    name: "Подготовка контента поста"
     config:
       module: "FpLab4.Steps.ContentStep"
       function: "generate_post_content"
@@ -19,8 +20,9 @@ steps:
     on_success:
       save_result: "post_content"
 
-  create_post:
-    type: task
+  - id: "create_post"
+    type: "task"
+    name: "Создание поста"
     config:
       module: "FpLab4.Steps.HttpStep"
       method: "POST"
@@ -34,13 +36,14 @@ steps:
         ownerId: "{{test_post.owner_id}}"
         tags: "{{post_content.tags}}"
     on_success:
-      save_post_id: "post_id"
+      save_response: "post_response"
 
-  enhance_post:
-    type: parallel
+  - id: "enhance_post"
+    type: "parallel"
     steps:
-      add_attachment:
-        type: task
+      - id: "add_attachment"
+        type: "task"
+        name: "Добавление вложения"
         config:
           module: "FpLab4.Steps.HttpStep"
           method: "POST"
@@ -49,27 +52,29 @@ steps:
             Authorization: "Bearer {{auth_token}}"
             Content-Type: "application/json"
           body:
-            postId: "{{post_id}}"
+            postId: "{{post_response.id}}"
             name: "post_image.jpg"
             path: "/uploads/post_#{timestamp}.jpg"
             typeAttachmentId: 1
         on_success:
           save_response: "attachment_info"
 
-      add_initial_like:
-        type: task
+      - id: "add_initial_like"
+        type: "task"
+        name: "Добавление начального лайка"
         config:
           module: "FpLab4.Steps.HttpStep"
           method: "POST"
-          url: "{{base_url}}/api/posts/{{post_id}}/like"
+          url: "{{base_url}}/api/posts/{{post_response.id}}/like"
           headers:
             Authorization: "Bearer {{auth_token}}"
             Content-Type: "application/json"
         on_success:
           save_response: "like_info"
 
-      add_first_comment:
-        type: task
+      - id: "add_first_comment"
+        type: "task"
+        name: "Добавление первого комментария"
         config:
           module: "FpLab4.Steps.HttpStep"
           method: "POST"
@@ -79,41 +84,41 @@ steps:
             Content-Type: "application/json"
           body:
             userComment: "Опа. Пост создан с помощью оркестратора."
-            postId: "{{post_id}}"
+            postId: "{{post_response.id}}"
             accountId: "{{test_post.owner_id}}"
             createdAt: "#{current_datetime}"
         on_success:
           save_response: "comment_info"
 
-  verify_post_publication:
-    type: sequential
-    steps:
-      check_post_visibility:
-        type: task
-          config:
-            module: "FpLab4.Steps.HttpStep"
-            method: "GET"
-            url: "{{base_url}}/api/posts/{{post_id}}"
-            headers:
-              Authorization: "Bearer {{auth_token}}"
-              Content-Type: "application/json"
-          on_success:
-            save_response: "published_post"
+  - id: "check_post_visibility"
+    type: "task"
+    name: "Проверка видимости поста"
+    config:
+      module: "FpLab4.Steps.HttpStep"
+      method: "GET"
+      url: "{{base_url}}/api/posts/{{post_response.id}}"
+      headers:
+        Authorization: "Bearer {{auth_token}}"
+        Content-Type: "application/json"
+    on_success:
+      save_response: "published_post"
 
-      check_feed_inclusion:
-        type: task
-        config:
-          module: "FpLab4.Steps.HttpStep"
-          method: "GET"
-          url: "{{base_url}}/api/posts"
-          headers:
-            Authorization: "Bearer {{auth_token}}"
-            Content-Type: "application/json"
-        on_success:
-          save_response: "current_feed"
+  - id: "check_feed_inclusion"
+    type: "task"
+    name: "Проверка включения в ленту"
+    config:
+      module: "FpLab4.Steps.HttpStep"
+      method: "GET"
+      url: "{{base_url}}/api/posts"
+      headers:
+        Authorization: "Bearer {{auth_token}}"
+        Content-Type: "application/json"
+    on_success:
+      save_response: "current_feed"
 
-  analyze_post_performance:
-    type: task
+  - id: "analyze_post_performance"
+    type: "task"
+    name: "Анализ производительности поста"
     config:
       module: "FpLab4.Steps.AnalyticsStep"
       function: "analyze_post_engagement"

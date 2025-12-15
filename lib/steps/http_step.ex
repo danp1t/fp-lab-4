@@ -27,7 +27,6 @@ defmodule FpLab4.Steps.HttpStep do
         case Jason.decode(body) do
           {:ok, parsed_body} ->
             Logger.info("HttpStep: Success! Returning data")
-            # ВОЗВРАЩАЕМ ДАННЫЕ
             parsed_body
           {:error, error} ->
             Logger.error("HttpStep: Failed to parse JSON")
@@ -74,6 +73,8 @@ defmodule FpLab4.Steps.HttpStep do
   defp interpolate(list, context) when is_list(list) do
     Enum.map(list, &interpolate(&1, context))
   end
+
+
 
   defp interpolate(value, _context), do: value
 end
