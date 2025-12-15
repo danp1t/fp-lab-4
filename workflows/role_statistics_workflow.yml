@@ -1,3 +1,4 @@
+# role_statistics_workflow.yml
 name: "Статистика по ролям пользователей"
 include_configs:
   - "workflows/configs/api_config.yaml"
@@ -31,29 +32,29 @@ steps:
         on_success:
           save_result: "total_users"
 
-      - id: "get_users_by_email"
+      - id: "get_admin_users"
         type: "task"
-        name: "Фильтрация по email"
+        name: "Получение администраторов"
         config:
           module: "FpLab4.Steps.StatisticsStep"
           function: "filter_by_field"
           input: "{{all_accounts}}"
           field: "email"
-          value: "example"
+          value: "admin"
         on_success:
-          save_result: "example_users"
+          save_result: "admin_users"
 
-      - id: "get_group_by_name"
+      - id: "group_by_email_domain"
         type: "task"
-        name: "Группировка по имени"
+        name: "Группировка по домену email"
         config:
           module: "FpLab4.Steps.StatisticsStep"
           function: "group_by_date"
           input: "{{all_accounts}}"
-          date_field: "name"  
-          interval: "month"
+          date_field: "email"
+          interval: "domain"
         on_success:
-          save_result: "name_groups"
+          save_result: "email_groups"
 
   - id: "get_accounts_with_roles"
     type: "parallel"
@@ -119,8 +120,8 @@ steps:
       function: "generate_role_report"
       inputs:
         total_users: "{{total_users}}"
-        example_users_count: "{{example_users|length}}"
-        name_groups: "{{name_groups}}"
+        admin_users_count: "{{admin_users|length}}"
+        email_groups: "{{email_groups}}"
         role_samples: "{{role_samples}}"
     on_success:
       save_result: "role_report"

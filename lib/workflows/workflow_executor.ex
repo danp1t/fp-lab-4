@@ -189,35 +189,50 @@ defmodule Workflows.WorkflowExecutor do
   end
 
   defp execute_parallel(parallel, context) do
-    Logger.info("Executing parallel steps: #{length(parallel.steps)} tasks")
+  Logger.info("Executing parallel steps: #{length(parallel.steps)} tasks")
+  Logger.info("Initial context keys: #{inspect(Map.keys(context))}")  # Исправить здесь
 
-    tasks = Enum.map(parallel.steps, fn step ->
-      Task.async(fn -> execute_step(step, context) end)
-    end)
+  tasks = Enum.map(parallel.steps, fn step ->
+    Task.async(fn -> execute_step(step, context) end)
+  end)
 
-    results = Task.await_many(tasks, 30_000)
+  results = Task.await_many(tasks, 30_000)
 
-    # Объединяем результаты (контексты) от всех шагов
-    Enum.reduce(results, context, fn
-      {:ok, step_context}, acc ->
-        if is_map(step_context) do
-          Map.merge(acc, step_context)
-        else
-          acc
-        end
+  # Добавим логирование результатов
+  Logger.info("Parallel results count: #{length(results)}")
+  Enum.each(results, fn result ->
+    case result do
+      {:ok, data} when is_map(data) ->
+        Logger.info("Result keys: #{inspect(Map.keys(data))}")  # И здесь
+      {:error, error} ->
+        Logger.error("Error in parallel step: #{error}")
+      other ->
+        Logger.info("Other result type: #{inspect(other, limit: 1)}")
+    end
+  end)
 
-      {:error, error}, acc ->
-        Logger.warning("Parallel step failed: #{error}")
-        acc
+  # Объединяем результаты (контексты) от всех шагов
+  merged_context = Enum.reduce(results, context, fn
+    {:ok, step_context}, acc when is_map(step_context) ->
+      Logger.info("Merging step context with keys: #{inspect(Map.keys(step_context))}")  # И здесь
+      Map.merge(acc, step_context)
 
-      step_context, acc ->
-        if is_map(step_context) do
-          Map.merge(acc, step_context)
-        else
-          acc
-        end
-    end)
-  end
+    {:error, error}, acc ->
+      Logger.warning("Parallel step failed: #{error}")
+      acc
+
+    step_context, acc when is_map(step_context) ->
+      Logger.info("Merging non-tuple step context with keys: #{inspect(Map.keys(step_context))}")  # И здесь
+      Map.merge(acc, step_context)
+
+    other, acc ->
+      Logger.warning("Unexpected result in parallel: #{inspect(other, limit: 1)}")
+      acc
+  end)
+
+  Logger.info("Merged context keys after parallel: #{inspect(Map.keys(merged_context))}")  # И здесь
+  merged_context
+end
 
   defp execute_sequential(sequential, context) do
     Logger.info("Executing sequential steps: #{length(sequential.steps)} steps")
@@ -228,10 +243,11 @@ defmodule Workflows.WorkflowExecutor do
   defp handle_step_result({:ok, data}, on_success, context) do
     Logger.debug("Handling step result with on_success: #{inspect(on_success)}")
 
-    # Применяем on_success операции
-    Enum.reduce(on_success, context, fn
+    # Сохраняем результат в контекст
+    new_context = Enum.reduce(on_success, context, fn
       {:save_response, key}, acc ->
         Logger.debug("Saving response as #{key}: #{inspect(data, limit: 1)}")
+        # Сохраняем как атом
         Map.put(acc, String.to_atom(key), data)
 
       {:save_result, key}, acc ->
@@ -239,15 +255,18 @@ defmodule Workflows.WorkflowExecutor do
         Map.put(acc, String.to_atom(key), data)
 
       {:save_product_id, key}, acc ->
-        id = if is_map(data), do: data["id"], else: data
+        id = if is_map(data), do: data["id"] || data[:id], else: data
         Map.put(acc, String.to_atom(key), id)
 
       {:save_post_id, key}, acc ->
-        id = if is_map(data), do: data["id"], else: data
+        id = if is_map(data), do: data["id"] || data[:id], else: data
         Map.put(acc, String.to_atom(key), id)
 
       _, acc -> acc
     end)
+
+    Logger.debug("Context keys after save: #{inspect(Map.keys(new_context), limit: 10)}")
+    new_context
   end
 
   defp handle_step_result({:error, error}, _, _) do
@@ -258,6 +277,14 @@ defmodule Workflows.WorkflowExecutor do
   defp handle_step_result(other, on_success, context) do
     # Если результат не кортеж {:ok, data} или {:error, error}, считаем его успешным
     Logger.debug("Handling non-tuple result: #{inspect(other, limit: 1)}")
-    handle_step_result({:ok, other}, on_success, context)
+
+    # Если результат уже контекст (map с ключами), возвращаем его как есть
+    if is_map(other) and Map.has_key?(other, :timestamp) and Map.has_key?(other, :workflow_name) do
+      Logger.debug("Result is already a context, returning as is")
+      other
+    else
+      # Иначе обрабатываем как обычный результат
+      handle_step_result({:ok, other}, on_success, context)
+    end
   end
 end
