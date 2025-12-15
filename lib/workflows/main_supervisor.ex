@@ -14,10 +14,8 @@ defmodule Workflows.MainSupervisor do
   end
 
   def start_workflow(workflow_name, yaml_content) do
-    # Парсим workflow
     case Workflows.Parser.parse_workflow(yaml_content) do
       {:ok, workflow} ->
-        # Стартуем workflow executor
         child_spec = {Workflows.WorkflowExecutor, {workflow_name, workflow}}
 
         case DynamicSupervisor.start_child(
@@ -25,7 +23,6 @@ defmodule Workflows.MainSupervisor do
           child_spec
         ) do
           {:ok, pid} ->
-            # Регистрируем в реестре
             Workflows.Registry.register(workflow_name, pid)
             {:ok, pid}
           {:error, reason} ->

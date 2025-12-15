@@ -1,6 +1,4 @@
 defmodule Workflows.ConfigManager do
-  @configs_path "workflows/configs/"
-
   def load_configs(include_configs, base_context \\ %{}) do
     Enum.reduce(include_configs, base_context, fn config_name, acc ->
       config = load_config_file(config_name)
@@ -9,7 +7,6 @@ defmodule Workflows.ConfigManager do
   end
 
   defp load_config_file(config_name) do
-    # Для тестирования используем хардкод конфиги
     case config_name do
       "workflows/configs/api_config.yaml" ->
         %{
@@ -33,7 +30,7 @@ defmodule Workflows.ConfigManager do
           }
         }
       _ ->
-        IO.puts("Warning: Config file #{config_name} not found, using empty config")
+        IO.puts("Ошибка: Конфигурационный файл #{config_name} не найден")
         %{}
     end
   end

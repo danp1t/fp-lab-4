@@ -11,7 +11,6 @@ defmodule Workflows.Monitor do
     :started_at
   ]
 
-  # Client API
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -29,7 +28,6 @@ defmodule Workflows.Monitor do
     end
   end
 
-  # Server Callbacks
   def init(_opts) do
     state = %__MODULE__{
       workflows: %{},
@@ -42,7 +40,6 @@ defmodule Workflows.Monitor do
       started_at: DateTime.utc_now()
     }
 
-    # Запускаем периодическое обновление
     schedule_refresh()
 
     {:ok, state}
@@ -56,7 +53,6 @@ defmodule Workflows.Monitor do
   def handle_info(:refresh, state) do
     stats = calculate_current_stats(state)
 
-    # Логируем статистику
     Logger.info("""
     Workflow Monitor Stats:
     - Running: #{stats.running}
@@ -86,7 +82,7 @@ defmodule Workflows.Monitor do
     %{
       running: running,
       total_executed: length(workflows),
-      successful: 0, # Здесь нужна более сложная логика
+      successful: 0,
       failed: 0,
       uptime_seconds: DateTime.diff(DateTime.utc_now(), state.started_at)
     }

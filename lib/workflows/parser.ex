@@ -89,7 +89,6 @@ defmodule Workflows.Parser do
   defp parse_on_success(_), do: %{}
 
   defp extract_variables(data) do
-    # Extract variables from steps for dependency analysis
     variables = data["steps"]
     |> List.wrap()
     |> Enum.flat_map(&extract_step_variables/1)

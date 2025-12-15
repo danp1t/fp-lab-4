@@ -19,7 +19,6 @@ defmodule Workflows.WorkflowExecutor do
     :retry_count
   ]
 
-  # Client API
   def start_link({name, workflow}) do
     GenServer.start_link(__MODULE__, {name, workflow})
   end
@@ -32,20 +31,16 @@ defmodule Workflows.WorkflowExecutor do
     GenServer.stop(pid, :normal)
   end
 
-  # Server Callbacks
   def init({name, workflow}) do
     Logger.info("Starting workflow: #{name}")
 
-    # Регистрируем процесс
     case Workflows.Registry.register(name, self()) do
       :ok -> Logger.debug("Registered workflow: #{name}")
       {:error, reason} -> Logger.warn("Failed to register workflow: #{reason}")
     end
 
-    # Загружаем конфигурации
     configs = ConfigManager.load_configs(workflow.include_configs)
 
-    # Инициализируем контекст
     initial_context = ConfigManager.merge_contexts(configs, %{
       workflow_name: name,
       started_at: DateTime.utc_now(),
@@ -129,7 +124,6 @@ defmodule Workflows.WorkflowExecutor do
           }
         }
 
-        # Планируем повторную попытку
         Process.send_after(self(), :retry_workflow, 5000)
 
         error_state
@@ -158,32 +152,25 @@ defmodule Workflows.WorkflowExecutor do
         execute_sequential(sequential, context)
     end
 
-    # Передаем контекст в handle_step_result
     handle_step_result(result, step.on_success || %{}, context)
   end
 
   defp execute_task(task, context) do
-    # Интерполируем параметры
     interpolated_params = Interpolator.interpolate(task.parameters, context)
 
     Logger.debug("Task #{task.name} params: #{inspect(interpolated_params, limit: 2)}")
 
-    # Определяем модуль и функцию
     module = task.module |> String.split(".") |> Module.concat()
     function = task.function |> String.to_atom()
 
-    # Выполняем шаг
     result = apply(module, function, [interpolated_params, context])
 
     Logger.debug("Task #{task.name} result type: #{inspect(result, limit: 2)}")
-
-    # Обрабатываем результат
     case result do
       {:error, error} ->
         Logger.error("Task #{task.name} failed: #{error}")
         {:error, error}
       data ->
-        # Любые данные (список, мапа, число, строка)
         {:ok, data}
     end
   end
@@ -198,7 +185,6 @@ defmodule Workflows.WorkflowExecutor do
 
   results = Task.await_many(tasks, 30_000)
 
-  # Добавим логирование результатов
   Logger.info("Parallel results count: #{length(results)}")
   Enum.each(results, fn result ->
     case result do
@@ -211,7 +197,6 @@ defmodule Workflows.WorkflowExecutor do
     end
   end)
 
-  # Объединяем результаты (контексты) от всех шагов
   merged_context = Enum.reduce(results, context, fn
     {:ok, step_context}, acc when is_map(step_context) ->
       Logger.info("Merging step context with keys: #{inspect(Map.keys(step_context))}")  # И здесь
@@ -239,15 +224,12 @@ end
     execute_steps(sequential.steps, context)
   end
 
-  # Обработка результатов шага
   defp handle_step_result({:ok, data}, on_success, context) do
     Logger.debug("Handling step result with on_success: #{inspect(on_success)}")
 
-    # Сохраняем результат в контекст
     new_context = Enum.reduce(on_success, context, fn
       {:save_response, key}, acc ->
         Logger.debug("Saving response as #{key}: #{inspect(data, limit: 1)}")
-        # Сохраняем как атом
         Map.put(acc, String.to_atom(key), data)
 
       {:save_result, key}, acc ->
@@ -275,15 +257,12 @@ end
   end
 
   defp handle_step_result(other, on_success, context) do
-    # Если результат не кортеж {:ok, data} или {:error, error}, считаем его успешным
     Logger.debug("Handling non-tuple result: #{inspect(other, limit: 1)}")
 
-    # Если результат уже контекст (map с ключами), возвращаем его как есть
     if is_map(other) and Map.has_key?(other, :timestamp) and Map.has_key?(other, :workflow_name) do
       Logger.debug("Result is already a context, returning as is")
       other
     else
-      # Иначе обрабатываем как обычный результат
       handle_step_result({:ok, other}, on_success, context)
     end
   end

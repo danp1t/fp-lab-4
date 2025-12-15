@@ -1,8 +1,4 @@
 defmodule FpLab4.CLI do
-  @moduledoc """
-  Командный интерфейс для управления workflow
-  """
-
   alias Workflows.MainSupervisor
   alias Workflows.Parser
 
@@ -35,27 +31,26 @@ defmodule FpLab4.CLI do
           {:ok, workflow} ->
             case MainSupervisor.start_workflow(name, workflow) do
               {:ok, pid} ->
-                IO.puts("✅ Workflow #{name} started successfully with PID: #{inspect(pid)}")
-                # Даем время на выполнение
+                IO.puts("Workflow #{name} запущен и имеет PID: #{inspect(pid)}")
                 :timer.sleep(1000)
                 print_workflow_status(name)
                 :ok
               {:error, reason} ->
-                IO.puts("❌ Failed to start workflow: #{reason}")
+                IO.puts("Ошибка выполнения Workflow: #{reason}")
                 :error
             end
           {:error, reason} ->
-            IO.puts("❌ Failed to parse workflow: #{reason}")
+            IO.puts("Ошибка парсинга Workflow: #{reason}")
             :error
         end
       {:error, reason} ->
-        IO.puts("❌ Failed to read file: #{reason}")
+        IO.puts("Ошибка чтения данных: #{reason}")
         :error
     end
   end
 
   defp process_command({[list: true], _}) do
-    IO.puts("\n📋 Running Workflows:")
+    IO.puts("Выполняющиеся workflows:")
     IO.puts(String.duplicate("=", 50))
 
     workflows = Workflows.Registry.list()
@@ -87,14 +82,14 @@ defmodule FpLab4.CLI do
       [{pid, _}] ->
         case Workflows.WorkflowExecutor.stop(pid) do
           :ok ->
-            IO.puts("✅ Workflow #{name} stopped")
+            IO.puts("Workflow #{name} остановлен")
             :ok
           {:error, reason} ->
-            IO.puts("❌ Failed to stop workflow: #{reason}")
+            IO.puts("Ошибка остановки Workflow: #{reason}")
             :error
         end
       [] ->
-        IO.puts("❌ Workflow #{name} not found")
+        IO.puts("Workflow #{name} не найден")
         :error
     end
   end
@@ -120,12 +115,12 @@ defmodule FpLab4.CLI do
     case Workflows.Registry.lookup(name) do
       [{pid, _}] ->
         status = Workflows.WorkflowExecutor.get_status(pid)
-        IO.puts("\n📊 Status for #{name}:")
+        IO.puts("Статус #{name}:")
         IO.puts(String.duplicate("-", 40))
         IO.inspect(status, limit: :infinity)
         :ok
       [] ->
-        IO.puts("❌ Workflow #{name} not found")
+        IO.puts("Workflow #{name} не найден")
         :error
     end
   end

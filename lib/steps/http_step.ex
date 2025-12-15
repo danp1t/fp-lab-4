@@ -43,18 +43,6 @@ defmodule FpLab4.Steps.HttpStep do
     end
   end
 
-  defp process_success(%{"save_response" => key}, response, context) do
-    Map.put(context, String.to_atom(key), response)
-  end
-
-  defp process_success(%{"save_product_id" => key}, %{"id" => id}, context) do
-    Map.put(context, String.to_atom(key), id)
-  end
-
-  defp process_success(_on_success, response, context) do
-    context
-  end
-
   defp interpolate(value, context) when is_binary(value) do
     Regex.replace(~r/\{\{(\w+)\}\}/, value, fn _, key ->
       case Map.get(context, String.to_atom(key)) do

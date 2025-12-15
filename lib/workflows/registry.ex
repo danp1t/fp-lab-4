@@ -1,10 +1,6 @@
 defmodule Workflows.Registry do
   use GenServer
 
-  @moduledoc """
-  Кастомный реестр для управления процессами workflow.
-  """
-
   defstruct [
     :processes,
     :name_to_pid,
