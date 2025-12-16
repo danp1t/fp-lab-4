@@ -70,8 +70,6 @@ defmodule FpLab4.Steps.StatisticsStep do
     end
   end
 
-  # Вспомогательные функции
-
   defp calculate_count(data) when is_list(data), do: length(data)
 
   defp calculate_count(data) do

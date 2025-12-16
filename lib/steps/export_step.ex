@@ -7,9 +7,6 @@ defmodule FpLab4.Steps.ExportStep do
   alias Workflows.Interpolator
   require Logger
 
-  @doc """
-  Экспортирует данные в файл
-  """
   def save_json(params, context) do
     data = get_input(params["data"], context)
     filename = Interpolator.interpolate(params["filename"], context)

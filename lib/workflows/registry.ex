@@ -12,7 +12,6 @@ defmodule Workflows.Registry do
     :pid_to_name
   ]
 
-  # Client API
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -37,7 +36,6 @@ defmodule Workflows.Registry do
     GenServer.call(__MODULE__, {:whereis, name})
   end
 
-  # Server Callbacks
   def init(_opts) do
     state = %__MODULE__{
       processes: %{},
@@ -49,7 +47,6 @@ defmodule Workflows.Registry do
   end
 
   def handle_call({:register, name, pid}, _from, state) do
-    # Удаляем старую регистрацию, если существует
     new_state =
       case Map.get(state.name_to_pid, name) do
         nil ->
@@ -70,7 +67,6 @@ defmodule Workflows.Registry do
         pid_to_name: Map.put(new_state.pid_to_name, pid, name)
     }
 
-    # Мониторим процесс
     Process.monitor(pid)
 
     {:reply, :ok, new_state}

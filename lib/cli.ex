@@ -15,7 +15,7 @@ defmodule Workflows.CLI do
     Workflow Orchestration System (интерактивный режим)
     =======================================================
     Введите команду. Для справки введите: help
-    Для выхода: exit или quit
+    Для выхода: exit
     """)
 
     interactive_loop()
@@ -45,10 +45,6 @@ defmodule Workflows.CLI do
             interactive_loop()
 
           "exit" ->
-            IO.puts("Выход из интерактивного режима")
-            :ok
-
-          "quit" ->
             IO.puts("Выход из интерактивного режима")
             :ok
 
@@ -129,7 +125,6 @@ defmodule Workflows.CLI do
         file: :string,
         list: :boolean,
         status: :string,
-        stop: :string,
         help: :boolean
       ],
       aliases: [
@@ -154,10 +149,6 @@ defmodule Workflows.CLI do
 
       {:execute, {:status, name}} ->
         get_status(name)
-        :ok
-
-      {:execute, {:stop, name}} ->
-        stop_workflow(name)
         :ok
 
       {:execute, {:run, name, file}} ->
@@ -186,9 +177,6 @@ defmodule Workflows.CLI do
       has_valid_status?(opts) ->
         {:execute, {:status, opts[:status]}}
 
-      has_valid_stop?(opts) ->
-        {:execute, {:stop, opts[:stop]}}
-
       has_valid_run?(opts) ->
         {:execute, {:run, opts[:workflow], opts[:file]}}
 
@@ -202,10 +190,6 @@ defmodule Workflows.CLI do
 
   defp has_valid_status?(opts) do
     is_binary(opts[:status]) and opts[:status] != ""
-  end
-
-  defp has_valid_stop?(opts) do
-    is_binary(opts[:stop]) and opts[:stop] != ""
   end
 
   defp has_valid_run?(opts) do
@@ -351,12 +335,6 @@ defmodule Workflows.CLI do
       IO.puts("\nОшибка:")
       IO.puts("  #{inspect(status.error[:message])}")
     end
-
-    if status.context do
-      IO.puts("\nКонтекст (первые 5 ключей):")
-      keys = Map.keys(status.context) |> Enum.take(5) |> Enum.map_join(", ", &inspect/1)
-      IO.puts("   #{keys}")
-    end
   end
 
   defp format_datetime(nil), do: "не определено"
@@ -374,7 +352,6 @@ defmodule Workflows.CLI do
       help                 - Показать эту справку
       list                 - Показать список запущенных workflows
       status <name>        - Показать статус workflow
-      stop <name>          - Остановить workflow
       run <name> <file>    - Запустить workflow
       clear                - Очистить экран
       exit/quit            - Выйти из интерактивного режима
@@ -384,13 +361,6 @@ defmodule Workflows.CLI do
       list
       status test
       stop test
-
-    Старый формат (с флагами):
-      --workflow test --file workflows/test.yml
-      --list
-      --status test
-      --stop test
-
     """)
   end
 

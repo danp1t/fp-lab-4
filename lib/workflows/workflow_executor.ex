@@ -105,7 +105,6 @@ defmodule Workflows.WorkflowExecutor do
     try do
       Logger.info("Executing workflow steps for #{state.workflow_name}")
 
-      # Выполняем шаги
       new_context = execute_steps(state.workflow.steps, state.context)
 
       %{
@@ -214,7 +213,6 @@ defmodule Workflows.WorkflowExecutor do
     merged_context =
       Enum.reduce(results, context, fn
         {:ok, step_context}, acc when is_map(step_context) ->
-          # И здесь
           Logger.info("Merging step context with keys: #{inspect(Map.keys(step_context))}")
           Map.merge(acc, step_context)
 
@@ -223,7 +221,6 @@ defmodule Workflows.WorkflowExecutor do
           acc
 
         step_context, acc when is_map(step_context) ->
-          # И здесь
           Logger.info(
             "Merging non-tuple step context with keys: #{inspect(Map.keys(step_context))}"
           )
@@ -235,7 +232,6 @@ defmodule Workflows.WorkflowExecutor do
           acc
       end)
 
-    # И здесь
     Logger.info("Merged context keys after parallel: #{inspect(Map.keys(merged_context))}")
     merged_context
   end
