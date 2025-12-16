@@ -169,8 +169,4 @@ defmodule Workflows.Interpolator do
     atom_key = String.to_atom(key)
     Map.get(context, atom_key) || Map.get(context, key)
   end
-
-  defp get_var_value(var_name, context) do
-    get_from_context(var_name, context)
-  end
 end

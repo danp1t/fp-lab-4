@@ -36,7 +36,7 @@ defmodule Workflows.WorkflowExecutor do
 
     case Workflows.Registry.register(name, self()) do
       :ok -> Logger.debug("Registered workflow: #{name}")
-      {:error, reason} -> Logger.warn("Failed to register workflow: #{reason}")
+      {:error, reason} -> Logger.warning("Failed to register workflow: #{reason}")
     end
 
     configs = ConfigManager.load_configs(workflow.include_configs)

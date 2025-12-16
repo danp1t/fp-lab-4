@@ -1,42 +1,96 @@
-defmodule FpLab4.CLI do
-  alias Workflows.MainSupervisor
+defmodule Workflows.CLI do
   alias Workflows.Parser
+  alias Workflows.WorkflowExecutor
+  alias Workflows.Registry
 
   def main(args) do
+    Application.ensure_all_started(:fp_lab4)
+
     args
     |> parse_args()
-    |> process_command()
+    |> dispatch_command()
   end
 
   defp parse_args(args) do
-    {opts, parsed_args, _} = OptionParser.parse(args,
+    {opts, args, invalid} = OptionParser.parse(
+      args,
       strict: [
         workflow: :string,
         file: :string,
         list: :boolean,
         status: :string,
-        stop: :string
+        stop: :string,
+        help: :boolean
+      ],
+      aliases: [
+        w: :workflow,
+        f: :file,
+        l: :list,
+        s: :status,
+        h: :help
       ]
     )
 
-    {opts, parsed_args}
+    {opts, args, invalid}
   end
 
-  defp process_command({[workflow: name, file: file_path], _}) do
-    IO.puts("Starting workflow: #{name} from #{file_path}")
+  defp dispatch_command({[help: true], _, _}) do
+    print_help()
+    :ok
+  end
+
+  defp dispatch_command({[workflow: name, file: file_path], _, _}) do
+    run_workflow(name, file_path)
+  end
+
+  defp dispatch_command({[list: true], _, _}) do
+    list_workflows()
+  end
+
+  defp dispatch_command({[status: name], _, _}) do
+    get_status(name)
+  end
+
+  defp dispatch_command({[stop: name], _, _}) do
+    stop_workflow(name)
+  end
+
+  defp dispatch_command({[], [], []}) do
+    print_help()
+    :ok
+  end
+
+  defp dispatch_command({_, _, invalid}) do
+    IO.puts("Неверные аргументы: #{inspect(invalid)}")
+    print_help()
+    :error
+  end
+
+  defp run_workflow(name, file_path) do
+    IO.puts("Запуск workflow: #{name} из #{file_path}")
 
     case File.read(file_path) do
       {:ok, content} ->
         case Parser.parse_workflow(content) do
           {:ok, workflow} ->
-            case MainSupervisor.start_workflow(name, workflow) do
+            case WorkflowExecutor.start_link({name, workflow}) do
               {:ok, pid} ->
-                IO.puts("Workflow #{name} запущен и имеет PID: #{inspect(pid)}")
-                :timer.sleep(1000)
-                print_workflow_status(name)
+                IO.puts("Workflow '#{name}' успешно запущен")
+                IO.puts("PID: #{inspect(pid)}")
+
+                Process.sleep(1000)
+
+                case Registry.lookup(name) do
+                  [{pid, _}] ->
+                    status = WorkflowExecutor.get_status(pid)
+                    print_workflow_details(name, status)
+                  [] ->
+                    IO.puts("Workflow не найден в реестре")
+                end
+
                 :ok
               {:error, reason} ->
-                IO.puts("Ошибка выполнения Workflow: #{reason}")
+                IO.puts("Ошибка выполнения Workflow: #{inspect(reason)}")
                 :error
             end
           {:error, reason} ->
@@ -44,84 +98,111 @@ defmodule FpLab4.CLI do
             :error
         end
       {:error, reason} ->
-        IO.puts("Ошибка чтения данных: #{reason}")
+        IO.puts("Ошибка чтения файла: #{reason}")
         :error
     end
   end
 
-  defp process_command({[list: true], _}) do
-    IO.puts("Выполняющиеся workflows:")
-    IO.puts(String.duplicate("=", 50))
+  defp list_workflows() do
+    workflows = Registry.list()
 
-    workflows = Workflows.Registry.list()
+    IO.puts("\nЗапущенные workflows:")
 
-    if length(workflows) > 0 do
+    if Enum.empty?(workflows) do
+      IO.puts("   Нет запущенных workflows")
+    else
       Enum.each(workflows, fn %{name: name, pid: pid} ->
-        case Workflows.WorkflowExecutor.get_status(pid) do
-          %{status: status, started_at: started} ->
-            runtime = DateTime.diff(DateTime.utc_now(), started)
-            IO.puts("  #{name}: #{status} (running #{runtime}s)")
+        case WorkflowExecutor.get_status(pid) do
+          %{status: status, started_at: started_at} ->
+            runtime = DateTime.diff(DateTime.utc_now(), started_at)
+            IO.puts("   • #{name}: #{status} (запущен #{runtime} секунд назад)")
           _ ->
-            IO.puts("  #{name}: unknown")
+            IO.puts("   • #{name}: статус неизвестен")
         end
       end)
-    else
-      IO.puts("  No workflows running")
     end
 
-    IO.puts(String.duplicate("=", 50))
     :ok
   end
 
-  defp process_command({[status: name], _}) do
-    print_workflow_status(name)
+  defp get_status(name) do
+    case Registry.lookup(name) do
+      [{pid, _}] ->
+        status = WorkflowExecutor.get_status(pid)
+        print_workflow_details(name, status)
+        :ok
+      [] ->
+        IO.puts("Workflow '#{name}' не найден")
+        :error
+    end
   end
 
-  defp process_command({[stop: name], _}) do
-    case Workflows.Registry.lookup(name) do
+  defp stop_workflow(name) do
+    case Registry.lookup(name) do
       [{pid, _}] ->
-        case Workflows.WorkflowExecutor.stop(pid) do
+        case GenServer.stop(pid, :normal) do
           :ok ->
-            IO.puts("Workflow #{name} остановлен")
+            IO.puts("Workflow '#{name}' остановлен")
             :ok
           {:error, reason} ->
-            IO.puts("Ошибка остановки Workflow: #{reason}")
+            IO.puts("Ошибка при остановке: #{inspect(reason)}")
             :error
         end
       [] ->
-        IO.puts("Workflow #{name} не найден")
+        IO.puts("Workflow '#{name}' не найден")
         :error
     end
   end
 
-  defp process_command(_) do
+  defp print_workflow_details(name, status) do
+    IO.puts("\nСтатус workflow: #{name}")
+
+    IO.puts("Состояние: #{status.status}")
+    IO.puts("Запущен: #{format_datetime(status.started_at)}")
+
+    if status.completed_at do
+      IO.puts("Завершен: #{format_datetime(status.completed_at)}")
+      runtime = DateTime.diff(status.completed_at, status.started_at)
+      IO.puts("Время выполнения: #{runtime} секунд")
+    end
+
+    if status.error do
+      IO.puts("\nОшибка:")
+      IO.inspect(status.error, label: nil)
+    end
+
+    if status.context do
+      IO.puts("\nКонтекст (первые 5 ключей):")
+      keys = Map.keys(status.context) |> Enum.take(5) |> Enum.map(&inspect/1) |> Enum.join(", ")
+      IO.puts("   #{keys}")
+    end
+
+  end
+
+  defp format_datetime(nil), do: "не определено"
+  defp format_datetime(datetime) do
+    DateTime.to_iso8601(datetime)
+  end
+
+  defp print_help() do
     IO.puts("""
-    Workflow Orchestration System
+    🌟 Workflow Orchestration System
 
-    Usage:
-      mix run lib/cli.exs --workflow NAME --file PATH
-      mix run lib/cli.exs --list
-      mix run lib/cli.exs --status NAME
-      mix run lib/cli.exs --stop NAME
+    Команды:
+      --workflow, -w NAME   Запустить workflow с указанным именем
+      --file, -f PATH       Указать файл с workflow (YAML)
+      --list, -l            Показать список запущенных workflows
+      --status, -s NAME     Показать статус workflow
+      --stop NAME           Остановить workflow
+      --help, -h            Показать эту справку
 
-    Examples:
-      mix run lib/cli.exs --workflow add_product --file workflows/add_product_workflow.yml
-      mix run lib/cli.exs --list
+    Примеры:
+      mix run -e "Workflows.CLI.main(['--help'])"
+      mix run -e "Workflows.CLI.main(['--list'])"
+      mix run -e "Workflows.CLI.main(['--workflow', 'test', '--file', 'workflows/test.yml'])"
+
+    Сокращения:
+      mix run -e "Workflows.CLI.main(['-w', 'test', '-f', 'workflows/test.yml'])"
     """)
-    :ok
-  end
-
-  defp print_workflow_status(name) do
-    case Workflows.Registry.lookup(name) do
-      [{pid, _}] ->
-        status = Workflows.WorkflowExecutor.get_status(pid)
-        IO.puts("Статус #{name}:")
-        IO.puts(String.duplicate("-", 40))
-        IO.inspect(status, limit: :infinity)
-        :ok
-      [] ->
-        IO.puts("Workflow #{name} не найден")
-        :error
-    end
   end
 end
