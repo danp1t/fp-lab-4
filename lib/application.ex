@@ -1,4 +1,8 @@
 defmodule FpLab4.Application do
+  @moduledoc """
+  Основной модуль приложения OTP.
+  Определяет структуру супервизоров и дочерние процессы.
+  """
   use Application
 
   @impl true

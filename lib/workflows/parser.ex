@@ -1,4 +1,9 @@
 defmodule Workflows.Parser do
+  @moduledoc """
+  Парсер YAML конфигураций workflow.
+  Преобразует YAML-описания workflow во внутренние структуры данных.
+  """
+
   alias Workflows.Step
 
   @spec parse_workflow(String.t()) :: {:ok, map()} | {:error, String.t()}

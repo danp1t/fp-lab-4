@@ -1,4 +1,9 @@
 defmodule FpLab4.Steps.HttpStep do
+  @moduledoc """
+  Шаг workflow для выполнения HTTP запросов.
+  Поддерживает GET, POST, PUT, DELETE методы и интерполяцию параметров.
+  """
+
   alias HTTPoison
 
   require Logger

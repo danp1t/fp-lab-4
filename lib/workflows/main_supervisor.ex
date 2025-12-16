@@ -1,4 +1,9 @@
 defmodule Workflows.MainSupervisor do
+  @moduledoc """
+  Главный супервизор workflow системы.
+  Управляет запуском и остановкой workflow.
+  """
+
   use Supervisor
 
   def start_link(_opts) do

@@ -1,4 +1,9 @@
 defmodule Workflows.Monitor do
+  @moduledoc """
+  Монитор для отслеживания состояния workflow.
+  Собирает метрики выполнения, статистику и информацию о запущенных процессах.
+  """
+
   use GenServer
 
   require Logger

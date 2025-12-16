@@ -1,4 +1,9 @@
 defmodule FpLab4.Steps.ReportStep do
+  @moduledoc """
+  Шаг workflow для генерации отчетов.
+  Собирает и форматирует статистическую информацию.
+  """
+
   require Logger
 
   def generate_role_report(_params, context) do

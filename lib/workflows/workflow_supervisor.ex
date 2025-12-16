@@ -1,4 +1,7 @@
 defmodule Workflows.WorkflowSupervisor do
+  @moduledoc """
+  Супервизор для управления динамическими workflow процессами.
+  """
   use Supervisor
 
   def start_link(_opts) do

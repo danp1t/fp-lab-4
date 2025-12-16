@@ -1,4 +1,9 @@
 defmodule Workflows.ConfigManager do
+  @moduledoc """
+  Менеджер конфигураций workflow.
+  Загружает и объединяет конфигурационные файлы.
+  """
+
   def load_configs(include_configs, base_context \\ %{}) do
     Enum.reduce(include_configs, base_context, fn config_name, acc ->
       config = load_config_file(config_name)

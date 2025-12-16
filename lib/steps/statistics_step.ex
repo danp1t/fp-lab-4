@@ -1,4 +1,9 @@
 defmodule FpLab4.Steps.StatisticsStep do
+  @moduledoc """
+  Шаг workflow для статистической обработки данных.
+  Поддерживает подсчет, фильтрацию, сортировку и группировку данных.
+  """
+
   require Logger
 
   def count_items(params, context) do

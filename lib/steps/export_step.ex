@@ -1,4 +1,9 @@
 defmodule FpLab4.Steps.ExportStep do
+  @moduledoc """
+  Шаг workflow для экспорта данных.
+  Сохраняет результаты в файлы (JSON и другие форматы).
+  """
+
   alias Workflows.Interpolator
   require Logger
 

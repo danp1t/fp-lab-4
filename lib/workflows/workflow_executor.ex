@@ -1,4 +1,8 @@
 defmodule Workflows.WorkflowExecutor do
+  @moduledoc """
+  Исполнитель workflow - управляет выполнением шагов workflow,
+  отслеживает состояние, обрабатывает ошибки и повторы.
+  """
   use GenServer
 
   require Logger

@@ -1,4 +1,9 @@
 defmodule Workflows.CLI do
+  @moduledoc """
+  Командный интерфейс для управления workflow системой.
+  Поддерживает интерактивный и неинтерактивный режимы.
+  """
+
   alias Workflows.Parser
   alias Workflows.WorkflowExecutor
   alias Workflows.Registry

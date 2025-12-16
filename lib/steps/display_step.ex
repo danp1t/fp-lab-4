@@ -1,4 +1,9 @@
 defmodule FpLab4.Steps.DisplayStep do
+  @moduledoc """
+  Шаг workflow для отображения данных в консоли.
+  Форматирует и выводит результаты выполнения workflow.
+  """
+
   def print_summary(params, context) do
     report = get_input(params["report"], context)
 

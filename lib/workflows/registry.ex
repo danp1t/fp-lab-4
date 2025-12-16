@@ -1,4 +1,9 @@
 defmodule Workflows.Registry do
+  @moduledoc """
+  Реестр для регистрации и отслеживания запущенных workflow процессов.
+  Обеспечивает связь между именами workflow и их PID.
+  """
+
   use GenServer
 
   defstruct [

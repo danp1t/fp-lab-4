@@ -1,4 +1,9 @@
 defmodule Workflows.Interpolator do
+  @moduledoc """
+  Интерполятор для подстановки значений из контекста в строки.
+  Поддерживает шаблоны {{variable}}, функции {function()} и математические выражения.
+  """
+
   def interpolate(value, context) when is_binary(value) do
     trimmed = String.trim(value)
 
