@@ -184,7 +184,6 @@ defmodule Workflows.WorkflowExecutor do
 
   defp execute_parallel(parallel, context) do
     Logger.info("Executing parallel steps: #{length(parallel.steps)} tasks")
-    # Исправить здесь
     Logger.info("Initial context keys: #{inspect(Map.keys(context))}")
 
     tasks =
@@ -199,7 +198,6 @@ defmodule Workflows.WorkflowExecutor do
     Enum.each(results, fn result ->
       case result do
         {:ok, data} when is_map(data) ->
-          # И здесь
           Logger.info("Result keys: #{inspect(Map.keys(data))}")
 
         {:error, error} ->
