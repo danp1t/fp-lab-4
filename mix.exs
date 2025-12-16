@@ -9,7 +9,10 @@ defmodule FpLab4.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      escript: escript()
+      escript: escript(),
+      preferred_cli_env: [
+        escript: :prod
+      ]
     ]
   end
 
@@ -45,7 +48,8 @@ defmodule FpLab4.MixProject do
     [
       main_module: Workflows.CLI,
       name: "workflow_cli",
-      app: nil
+      app: nil,
+      embed_elixir: true
     ]
   end
 end

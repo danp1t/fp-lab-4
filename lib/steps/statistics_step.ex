@@ -30,7 +30,6 @@ defmodule FpLab4.Steps.StatisticsStep do
     if length(data_list) == 0 do
       %{}
     else
-      # Сортируем по дате в порядке убывания и берем первый элемент
       sorted = Enum.sort_by(data_list, fn item ->
         date_str = Map.get(item, date_field) || Map.get(item, String.to_atom(date_field)) || ""
         parse_date_to_seconds(date_str)
@@ -44,7 +43,6 @@ end
     data = get_input(params["input"], context)
     field = params["field"]
 
-    # Безопасно преобразуем n в целое число
     n = case params["n"] do
       n when is_integer(n) -> n
       n when is_binary(n) ->
@@ -67,11 +65,9 @@ end
     if length(data_list) == 0 do
       []
     else
-      # Сортируем по полю в порядке убывания и берем N первых
       sorted = Enum.sort_by(data_list, fn item ->
         value = Map.get(item, field) || Map.get(item, String.to_atom(field)) || 0
 
-        # Преобразуем в число, если это строка
         case value do
           val when is_integer(val) -> val
           val when is_binary(val) ->

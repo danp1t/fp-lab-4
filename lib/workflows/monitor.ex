@@ -52,16 +52,6 @@ defmodule Workflows.Monitor do
 
   def handle_info(:refresh, state) do
     stats = calculate_current_stats(state)
-
-    Logger.info("""
-    Workflow Monitor Stats:
-    - Running: #{stats.running}
-    - Successful: #{stats.successful}
-    - Failed: #{stats.failed}
-    - Total: #{stats.total_executed}
-    - Uptime: #{stats.uptime_seconds}s
-    """)
-
     schedule_refresh()
     {:noreply, %{state | metrics: stats}}
   end
