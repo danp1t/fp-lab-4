@@ -14,6 +14,88 @@ defmodule FpLab4.Steps.StatisticsStep do
     %{String.to_atom(params["item_name"]) => count}
   end
 
+  def get_latest(params, context) do
+    data = get_input(params["input"], context)
+    date_field = params["date_field"]
+
+    data_list = case data do
+      data when is_list(data) -> data
+      _ ->
+        case parse_data(data) do
+          {:ok, parsed_data} when is_list(parsed_data) -> parsed_data
+          _ -> []
+        end
+    end
+
+    if length(data_list) == 0 do
+      %{}
+    else
+      # Сортируем по дате в порядке убывания и берем первый элемент
+      sorted = Enum.sort_by(data_list, fn item ->
+        date_str = Map.get(item, date_field) || Map.get(item, String.to_atom(date_field)) || ""
+        parse_date_to_seconds(date_str)
+      end, &>=/2)
+
+      List.first(sorted) || %{}
+    end
+end
+
+  def get_top_n(params, context) do
+    data = get_input(params["input"], context)
+    field = params["field"]
+
+    # Безопасно преобразуем n в целое число
+    n = case params["n"] do
+      n when is_integer(n) -> n
+      n when is_binary(n) ->
+        case Integer.parse(n) do
+          {num, _} -> num
+          :error -> 5
+        end
+      _ -> 5
+    end
+
+    data_list = case data do
+      data when is_list(data) -> data
+      _ ->
+        case parse_data(data) do
+          {:ok, parsed_data} when is_list(parsed_data) -> parsed_data
+          _ -> []
+        end
+    end
+
+    if length(data_list) == 0 do
+      []
+    else
+      # Сортируем по полю в порядке убывания и берем N первых
+      sorted = Enum.sort_by(data_list, fn item ->
+        value = Map.get(item, field) || Map.get(item, String.to_atom(field)) || 0
+
+        # Преобразуем в число, если это строка
+        case value do
+          val when is_integer(val) -> val
+          val when is_binary(val) ->
+            case Integer.parse(val) do
+              {num, _} -> num
+              :error -> 0
+            end
+          _ -> 0
+        end
+      end, &>=/2)
+
+      Enum.take(sorted, n)
+    end
+  end
+
+  defp parse_date_to_seconds(date_str) when is_binary(date_str) do
+    case DateTime.from_iso8601(date_str) do
+      {:ok, dt, _} -> DateTime.to_unix(dt)
+      {:error, _} -> 0
+    end
+  end
+
+  defp parse_date_to_seconds(_), do: 0
+
   def filter_by_field(params, context) do
     data = get_input(params["input"], context)
     field = params["field"]
