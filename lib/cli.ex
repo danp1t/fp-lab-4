@@ -25,7 +25,7 @@ defmodule Workflows.CLI do
   end
 
   defp interactive_loop do
-    prompt = "workflow> "
+    prompt = "> "
 
     case IO.gets(prompt) do
       :eof ->
@@ -81,7 +81,7 @@ defmodule Workflows.CLI do
       ["run", name, file_path] ->
         run_workflow(name, file_path)
 
-      ["run", name, file_path | rest] when length(rest) > 0 ->
+      ["run", _name, _file_path | rest] when rest != [] and length(rest) > 0 ->
         IO.puts("Лишние аргументы: #{inspect(rest)}")
         IO.puts("Использование: run <name> <file_path>")
 
