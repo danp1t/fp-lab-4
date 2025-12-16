@@ -3,6 +3,7 @@
 
 ### Описание
 В Yaml-файле описывается сценарий, который состоит из шагов. Данные шаги могут исполнять как последовательно так и параллельно
+
 Цель - создать систему оркестрации, которая позволит описывать исполнение E2E, где явно будет прописываться, что выполняется параллельно, а что последовательно. 
 
 ### Архитектура
@@ -163,7 +164,7 @@ steps:
 
   - id: "generate_role_report"
     type: "task"
-    name: "Генерация отчета по ролям"
+    name: "Генерация отчета"
     config:
       module: "FpLab4.Steps.ReportStep"
       function: "generate_role_report"
@@ -177,7 +178,7 @@ steps:
 
   - id: "export_statistics"
     type: "parallel"
-    name: "Экспорт статистики"
+    name: "Экспорт результата в файл"
     steps:
       - id: "save_to_json"
         type: "task"
@@ -190,7 +191,7 @@ steps:
 
       - id: "print_summary"
         type: "task"
-        name: "Вывод сводки"
+        name: "Вывод результата на экран"
         config:
           module: "FpLab4.Steps.DisplayStep"
           function: "print_summary"
