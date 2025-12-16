@@ -1,4 +1,3 @@
-# role_statistics_workflow.yml
 name: "Статистика по ролям пользователей"
 include_configs:
   - "workflows/configs/api_config.yaml"
