@@ -67,7 +67,7 @@ defmodule Workflows.CLI do
         :ok
 
       ["help" | _] ->
-        print_interactive_help()
+        print_help()
 
       ["list" | _] ->
         list_workflows()
@@ -282,10 +282,10 @@ defmodule Workflows.CLI do
     DateTime.to_iso8601(datetime)
   end
 
-  defp print_interactive_help() do
+  defp print_help() do
     IO.puts("""
 
-    Интерактивный Workflow CLI
+    Orchestrator CLI
 
     Основные команды:
       help                 - Показать эту справку
@@ -308,27 +308,6 @@ defmodule Workflows.CLI do
       --status test
       --stop test
 
-    """)
-  end
-
-  defp print_help() do
-    IO.puts("""
-    Workflow Orchestration System
-
-    Использование:
-      mix run lib/cli.ex                     # Запустить интерактивный режим
-      mix run lib/cli.ex --help              # Показать эту справку
-      mix run lib/cli.ex --list              # Показать список workflows
-      mix run lib/cli.ex --status <name>     # Показать статус workflow
-      mix run lib/cli.ex --stop <name>       # Остановить workflow
-      mix run lib/cli.ex --workflow <name> --file <path>  # Запустить workflow
-
-    Примеры:
-      mix run lib/cli.ex
-      mix run lib/cli.ex --workflow test --file workflows/test_workflow.yml
-      mix run lib/cli.ex --list
-      mix run lib/cli.ex --status test
-      mix run lib/cli.ex --stop test
     """)
   end
 
