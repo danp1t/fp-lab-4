@@ -140,7 +140,7 @@ steps:
 
       - id: "print_summary"
         type: "task"
-        name: "Вывод сводки"
+        name: "Вывод результата"
         config:
           module: "FpLab4.Steps.DisplayStep"
           function: "print_summary"
