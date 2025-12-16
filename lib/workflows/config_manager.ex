@@ -11,10 +11,13 @@ defmodule Workflows.ConfigManager do
       "workflows/configs/api_config.yaml" ->
         %{
           base_url: "http://localhost:8080",
-          auth_token: "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbkB0ZXN0LmNvbSIsImlhdCI6MTc2NTgyMjI5MywiZXhwIjoxNzY1OTA4NjkzfQ.aizQNmjNZz5qoEkSBd_Ksi8_wXVC0eq76xIGY1sEOvFImPVBRvpzfPmTQyu3nm08QBGcpHEaRnkxgCK4zubOyQ",
+          auth_token:
+            "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbkB0ZXN0LmNvbSIsImlhdCI6MTc2NTgyMjI5MywiZXhwIjoxNzY1OTA4NjkzfQ.aizQNmjNZz5qoEkSBd_Ksi8_wXVC0eq76xIGY1sEOvFImPVBRvpzfPmTQyu3nm08QBGcpHEaRnkxgCK4zubOyQ",
           account_id: 4,
-          admin_token: "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbkB0ZXN0LmNvbSIsImlhdCI6MTc2NTgyMjI5MywiZXhwIjoxNzY1OTA4NjkzfQ.aizQNmjNZz5qoEkSBd_Ksi8_wXVC0eq76xIGY1sEOvFImPVBRvpzfPmTQyu3nm08QBGcpHEaRnkxgCK4zubOyQ"
+          admin_token:
+            "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbkB0ZXN0LmNvbSIsImlhdCI6MTc2NTgyMjI5MywiZXhwIjoxNzY1OTA4NjkzfQ.aizQNmjNZz5qoEkSBd_Ksi8_wXVC0eq76xIGY1sEOvFImPVBRvpzfPmTQyu3nm08QBGcpHEaRnkxgCK4zubOyQ"
         }
+
       "workflows/configs/test_data.yaml" ->
         %{
           test_product: %{
@@ -29,6 +32,7 @@ defmodule Workflows.ConfigManager do
             owner_id: 2
           }
         }
+
       _ ->
         IO.puts("Ошибка: Конфигурационный файл #{config_name} не найден")
         %{}

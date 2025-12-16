@@ -12,6 +12,7 @@ defmodule Workflows.Interpolator do
           val when is_map(val) -> inspect(val)
           val -> inspect(val)
         end
+
       _ ->
         interpolate_string(value, context)
     end
@@ -57,7 +58,7 @@ defmodule Workflows.Interpolator do
   end
 
   defp parse_function_call("random_int") do
-    {:ok, :rand.uniform(1000000)}
+    {:ok, :rand.uniform(1_000_000)}
   end
 
   defp parse_function_call(func_call) do
@@ -65,6 +66,7 @@ defmodule Workflows.Interpolator do
       [func_name, arg_string] ->
         args = String.split(arg_string, ",") |> Enum.map(&String.trim/1)
         execute_function(func_name, args)
+
       _ ->
         :error
     end
@@ -95,9 +97,12 @@ defmodule Workflows.Interpolator do
       case evaluate_expression(expr, context) do
         {:ok, result} ->
           to_string(result)
+
         :error ->
           case get_nested_value(expr, context) do
-            nil -> "{{#{expr}}}"
+            nil ->
+              "{{#{expr}}}"
+
             value ->
               case value do
                 v when is_binary(v) -> v
@@ -128,13 +133,14 @@ defmodule Workflows.Interpolator do
 
   defp evaluate_math_expression(expr, context) do
     try do
-      expr_with_values = Regex.replace(~r/([a-zA-Z_][a-zA-Z0-9_.\[\]]*)/, expr, fn match, var_path ->
-        case get_nested_value(var_path, context) do
-          nil -> match
-          value when is_number(value) -> to_string(value)
-          _ -> match
-        end
-      end)
+      expr_with_values =
+        Regex.replace(~r/([a-zA-Z_][a-zA-Z0-9_.\[\]]*)/, expr, fn match, var_path ->
+          case get_nested_value(var_path, context) do
+            nil -> match
+            value when is_number(value) -> to_string(value)
+            _ -> match
+          end
+        end)
 
       {result, _} = Code.eval_string(expr_with_values, [])
       {:ok, result}
@@ -152,16 +158,20 @@ defmodule Workflows.Interpolator do
         case Regex.run(~r/([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]/, segment) do
           [_, array_name, index_str] ->
             array = get_from_context(array_name, acc)
+
             if is_list(array) do
               index = String.to_integer(index_str)
               if index < length(array), do: Enum.at(array, index), else: nil
             else
               nil
             end
+
           nil ->
             get_from_context(segment, acc)
         end
-      _, _ -> nil
+
+      _, _ ->
+        nil
     end)
   end
 

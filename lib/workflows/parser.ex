@@ -12,6 +12,7 @@ defmodule Workflows.Parser do
             steps: parse_steps(data["steps"] || []),
             variables: extract_variables(data)
           }
+
           {:ok, workflow}
 
         {:error, %YamlElixir.ParsingError{} = error} ->
@@ -32,7 +33,8 @@ defmodule Workflows.Parser do
         "task" -> parse_task_step(step_data)
         "parallel" -> parse_parallel_step(step_data)
         "sequential" -> parse_sequential_step(step_data)
-        _ -> parse_task_step(step_data) # Default to task
+        # Default to task
+        _ -> parse_task_step(step_data)
       end
     end)
   end
@@ -89,10 +91,11 @@ defmodule Workflows.Parser do
   defp parse_on_success(_), do: %{}
 
   defp extract_variables(data) do
-    variables = data["steps"]
-    |> List.wrap()
-    |> Enum.flat_map(&extract_step_variables/1)
-    |> Enum.uniq()
+    variables =
+      data["steps"]
+      |> List.wrap()
+      |> Enum.flat_map(&extract_step_variables/1)
+      |> Enum.uniq()
 
     %{
       declared: variables,
@@ -109,7 +112,9 @@ defmodule Workflows.Parser do
           {"save_result", var} -> var
           _ -> nil
         end)
-      _ -> []
+
+      _ ->
+        []
     end
     |> Enum.reject(&is_nil/1)
   end

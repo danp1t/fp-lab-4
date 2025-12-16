@@ -41,12 +41,13 @@ defmodule Workflows.WorkflowExecutor do
 
     configs = ConfigManager.load_configs(workflow.include_configs)
 
-    initial_context = ConfigManager.merge_contexts(configs, %{
-      workflow_name: name,
-      started_at: DateTime.utc_now(),
-      timestamp: DateTime.utc_now() |> DateTime.to_unix(),
-      current_datetime: DateTime.utc_now() |> DateTime.to_iso8601()
-    })
+    initial_context =
+      ConfigManager.merge_contexts(configs, %{
+        workflow_name: name,
+        started_at: DateTime.utc_now(),
+        timestamp: DateTime.utc_now() |> DateTime.to_unix(),
+        current_datetime: DateTime.utc_now() |> DateTime.to_iso8601()
+      })
 
     state = %__MODULE__{
       workflow_name: name,
@@ -78,11 +79,9 @@ defmodule Workflows.WorkflowExecutor do
   def handle_info(:retry_workflow, state) when state.retry_count < 3 do
     Logger.info("Retrying workflow #{state.workflow_name}, attempt #{state.retry_count + 1}")
 
-    new_state = %{state |
-      status: :retrying,
-      retry_count: state.retry_count + 1
-    }
-    |> execute_workflow()
+    new_state =
+      %{state | status: :retrying, retry_count: state.retry_count + 1}
+      |> execute_workflow()
 
     {:noreply, new_state}
   end
@@ -105,23 +104,25 @@ defmodule Workflows.WorkflowExecutor do
       # Выполняем шаги
       new_context = execute_steps(state.workflow.steps, state.context)
 
-      %{state |
-        status: :completed,
-        context: new_context,
-        completed_at: DateTime.utc_now(),
-        results: Map.put(state.results, :final, new_context)
+      %{
+        state
+        | status: :completed,
+          context: new_context,
+          completed_at: DateTime.utc_now(),
+          results: Map.put(state.results, :final, new_context)
       }
     rescue
       error ->
         Logger.error("Workflow execution failed: #{inspect(error)}")
 
-        error_state = %{state |
-          status: :failed,
-          error: %{
-            message: Exception.message(error),
-            stacktrace: Exception.format_stacktrace(__STACKTRACE__),
-            time: DateTime.utc_now()
-          }
+        error_state = %{
+          state
+          | status: :failed,
+            error: %{
+              message: Exception.message(error),
+              stacktrace: Exception.format_stacktrace(__STACKTRACE__),
+              time: DateTime.utc_now()
+            }
         }
 
         Process.send_after(self(), :retry_workflow, 5000)
@@ -141,16 +142,17 @@ defmodule Workflows.WorkflowExecutor do
   defp execute_step(step, context) do
     Logger.debug("Executing step: #{step.name || step.id}")
 
-    result = case step do
-      %Workflows.Step.Task{} = task ->
-        execute_task(task, context)
+    result =
+      case step do
+        %Workflows.Step.Task{} = task ->
+          execute_task(task, context)
 
-      %Workflows.Step.Parallel{} = parallel ->
-        execute_parallel(parallel, context)
+        %Workflows.Step.Parallel{} = parallel ->
+          execute_parallel(parallel, context)
 
-      %Workflows.Step.Sequential{} = sequential ->
-        execute_sequential(sequential, context)
-    end
+        %Workflows.Step.Sequential{} = sequential ->
+          execute_sequential(sequential, context)
+      end
 
     handle_step_result(result, step.on_success || %{}, context)
   end
@@ -166,58 +168,73 @@ defmodule Workflows.WorkflowExecutor do
     result = apply(module, function, [interpolated_params, context])
 
     Logger.debug("Task #{task.name} result type: #{inspect(result, limit: 2)}")
+
     case result do
       {:error, error} ->
         Logger.error("Task #{task.name} failed: #{error}")
         {:error, error}
+
       data ->
         {:ok, data}
     end
   end
 
   defp execute_parallel(parallel, context) do
-  Logger.info("Executing parallel steps: #{length(parallel.steps)} tasks")
-  Logger.info("Initial context keys: #{inspect(Map.keys(context))}")  # Исправить здесь
+    Logger.info("Executing parallel steps: #{length(parallel.steps)} tasks")
+    # Исправить здесь
+    Logger.info("Initial context keys: #{inspect(Map.keys(context))}")
 
-  tasks = Enum.map(parallel.steps, fn step ->
-    Task.async(fn -> execute_step(step, context) end)
-  end)
+    tasks =
+      Enum.map(parallel.steps, fn step ->
+        Task.async(fn -> execute_step(step, context) end)
+      end)
 
-  results = Task.await_many(tasks, 30_000)
+    results = Task.await_many(tasks, 30_000)
 
-  Logger.info("Parallel results count: #{length(results)}")
-  Enum.each(results, fn result ->
-    case result do
-      {:ok, data} when is_map(data) ->
-        Logger.info("Result keys: #{inspect(Map.keys(data))}")  # И здесь
-      {:error, error} ->
-        Logger.error("Error in parallel step: #{error}")
-      other ->
-        Logger.info("Other result type: #{inspect(other, limit: 1)}")
-    end
-  end)
+    Logger.info("Parallel results count: #{length(results)}")
 
-  merged_context = Enum.reduce(results, context, fn
-    {:ok, step_context}, acc when is_map(step_context) ->
-      Logger.info("Merging step context with keys: #{inspect(Map.keys(step_context))}")  # И здесь
-      Map.merge(acc, step_context)
+    Enum.each(results, fn result ->
+      case result do
+        {:ok, data} when is_map(data) ->
+          # И здесь
+          Logger.info("Result keys: #{inspect(Map.keys(data))}")
 
-    {:error, error}, acc ->
-      Logger.warning("Parallel step failed: #{error}")
-      acc
+        {:error, error} ->
+          Logger.error("Error in parallel step: #{error}")
 
-    step_context, acc when is_map(step_context) ->
-      Logger.info("Merging non-tuple step context with keys: #{inspect(Map.keys(step_context))}")  # И здесь
-      Map.merge(acc, step_context)
+        other ->
+          Logger.info("Other result type: #{inspect(other, limit: 1)}")
+      end
+    end)
 
-    other, acc ->
-      Logger.warning("Unexpected result in parallel: #{inspect(other, limit: 1)}")
-      acc
-  end)
+    merged_context =
+      Enum.reduce(results, context, fn
+        {:ok, step_context}, acc when is_map(step_context) ->
+          # И здесь
+          Logger.info("Merging step context with keys: #{inspect(Map.keys(step_context))}")
+          Map.merge(acc, step_context)
 
-  Logger.info("Merged context keys after parallel: #{inspect(Map.keys(merged_context))}")  # И здесь
-  merged_context
-end
+        {:error, error}, acc ->
+          Logger.warning("Parallel step failed: #{error}")
+          acc
+
+        step_context, acc when is_map(step_context) ->
+          # И здесь
+          Logger.info(
+            "Merging non-tuple step context with keys: #{inspect(Map.keys(step_context))}"
+          )
+
+          Map.merge(acc, step_context)
+
+        other, acc ->
+          Logger.warning("Unexpected result in parallel: #{inspect(other, limit: 1)}")
+          acc
+      end)
+
+    # И здесь
+    Logger.info("Merged context keys after parallel: #{inspect(Map.keys(merged_context))}")
+    merged_context
+  end
 
   defp execute_sequential(sequential, context) do
     Logger.info("Executing sequential steps: #{length(sequential.steps)} steps")
@@ -227,25 +244,27 @@ end
   defp handle_step_result({:ok, data}, on_success, context) do
     Logger.debug("Handling step result with on_success: #{inspect(on_success)}")
 
-    new_context = Enum.reduce(on_success, context, fn
-      {:save_response, key}, acc ->
-        Logger.debug("Saving response as #{key}: #{inspect(data, limit: 1)}")
-        Map.put(acc, String.to_atom(key), data)
+    new_context =
+      Enum.reduce(on_success, context, fn
+        {:save_response, key}, acc ->
+          Logger.debug("Saving response as #{key}: #{inspect(data, limit: 1)}")
+          Map.put(acc, String.to_atom(key), data)
 
-      {:save_result, key}, acc ->
-        Logger.debug("Saving result as #{key}: #{inspect(data, limit: 1)}")
-        Map.put(acc, String.to_atom(key), data)
+        {:save_result, key}, acc ->
+          Logger.debug("Saving result as #{key}: #{inspect(data, limit: 1)}")
+          Map.put(acc, String.to_atom(key), data)
 
-      {:save_product_id, key}, acc ->
-        id = if is_map(data), do: data["id"] || data[:id], else: data
-        Map.put(acc, String.to_atom(key), id)
+        {:save_product_id, key}, acc ->
+          id = if is_map(data), do: data["id"] || data[:id], else: data
+          Map.put(acc, String.to_atom(key), id)
 
-      {:save_post_id, key}, acc ->
-        id = if is_map(data), do: data["id"] || data[:id], else: data
-        Map.put(acc, String.to_atom(key), id)
+        {:save_post_id, key}, acc ->
+          id = if is_map(data), do: data["id"] || data[:id], else: data
+          Map.put(acc, String.to_atom(key), id)
 
-      _, acc -> acc
-    end)
+        _, acc ->
+          acc
+      end)
 
     Logger.debug("Context keys after save: #{inspect(Map.keys(new_context), limit: 10)}")
     new_context

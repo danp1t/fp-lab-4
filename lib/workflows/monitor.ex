@@ -23,6 +23,7 @@ defmodule Workflows.Monitor do
     case Workflows.Registry.lookup(name) do
       [{pid, _}] ->
         {:ok, Workflows.WorkflowExecutor.get_status(pid)}
+
       [] ->
         {:error, :not_found}
     end

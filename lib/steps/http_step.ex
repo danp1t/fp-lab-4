@@ -13,12 +13,13 @@ defmodule FpLab4.Steps.HttpStep do
 
     Logger.info("HttpStep: Making #{method} request to #{url}")
 
-    response = case method do
-      :get -> HTTPoison.get(url, headers)
-      :post -> HTTPoison.post(url, Jason.encode!(body), headers)
-      :put -> HTTPoison.put(url, Jason.encode!(body), headers)
-      :delete -> HTTPoison.delete(url, headers)
-    end
+    response =
+      case method do
+        :get -> HTTPoison.get(url, headers)
+        :post -> HTTPoison.post(url, Jason.encode!(body), headers)
+        :put -> HTTPoison.put(url, Jason.encode!(body), headers)
+        :delete -> HTTPoison.delete(url, headers)
+      end
 
     Logger.info("HttpStep: Response received")
 
@@ -28,6 +29,7 @@ defmodule FpLab4.Steps.HttpStep do
           {:ok, parsed_body} ->
             Logger.info("HttpStep: Success! Returning data")
             parsed_body
+
           {:error, error} ->
             Logger.error("HttpStep: Failed to parse JSON")
             {:error, "Failed to parse JSON: #{inspect(error)}"}
@@ -61,8 +63,6 @@ defmodule FpLab4.Steps.HttpStep do
   defp interpolate(list, context) when is_list(list) do
     Enum.map(list, &interpolate(&1, context))
   end
-
-
 
   defp interpolate(value, _context), do: value
 end

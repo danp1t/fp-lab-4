@@ -92,6 +92,7 @@ defmodule Workflows.CLI do
         case parse_args(args) do
           {opts, _, []} ->
             dispatch_command({opts, [], []}, true)
+
           _ ->
             IO.puts("Неизвестная команда: #{line}")
             IO.puts("Введите 'help' для списка команд")
@@ -108,7 +109,9 @@ defmodule Workflows.CLI do
           {middle, "\""} -> middle
           _ -> rest
         end
-      arg -> arg
+
+      arg ->
+        arg
     end)
     |> Enum.reject(&(&1 == ""))
   end
@@ -162,6 +165,7 @@ defmodule Workflows.CLI do
         else
           print_help()
         end
+
         :error
     end
   end
@@ -184,19 +188,23 @@ defmodule Workflows.CLI do
                   [{pid, _}] ->
                     status = WorkflowExecutor.get_status(pid)
                     print_workflow_details(name, status)
+
                   [] ->
                     IO.puts("Workflow не найден в реестре")
                 end
 
                 :ok
+
               {:error, reason} ->
                 IO.puts("Ошибка выполнения Workflow: #{inspect(reason)}")
                 :error
             end
+
           {:error, reason} ->
             IO.puts("Ошибка парсинга Workflow: #{reason}")
             :error
         end
+
       {:error, reason} ->
         IO.puts("Ошибка чтения файла: #{reason}")
         :error
@@ -216,11 +224,13 @@ defmodule Workflows.CLI do
           %{status: status, started_at: started_at} ->
             runtime = DateTime.diff(DateTime.utc_now(), started_at)
             IO.puts("   #{name}: #{status} (запущен #{runtime} секунд назад)")
+
           _ ->
             IO.puts("   #{name}: статус неизвестен")
         end
       end)
     end
+
     :ok
   end
 
@@ -230,6 +240,7 @@ defmodule Workflows.CLI do
         status = WorkflowExecutor.get_status(pid)
         print_workflow_details(name, status)
         :ok
+
       [] ->
         IO.puts("Workflow '#{name}' не найден")
         :error
@@ -243,10 +254,12 @@ defmodule Workflows.CLI do
           :ok ->
             IO.puts("Workflow '#{name}' остановлен")
             :ok
+
           {:error, reason} ->
             IO.puts("Ошибка при остановке: #{inspect(reason)}")
             :error
         end
+
       [] ->
         IO.puts("Workflow '#{name}' не найден")
         :error
@@ -278,6 +291,7 @@ defmodule Workflows.CLI do
   end
 
   defp format_datetime(nil), do: "не определено"
+
   defp format_datetime(datetime) do
     DateTime.to_iso8601(datetime)
   end
@@ -313,7 +327,11 @@ defmodule Workflows.CLI do
 
   defp show_debug_info() do
     IO.puts("Отладочная информация:")
-    IO.puts("Приложение запущено: #{Application.started_applications() |> Enum.any?(fn {app, _, _} -> app == :fp_lab4 end)}")
+
+    IO.puts(
+      "Приложение запущено: #{Application.started_applications() |> Enum.any?(fn {app, _, _} -> app == :fp_lab4 end)}"
+    )
+
     workflows = Registry.list()
     IO.puts("Зарегистрированных workflows: #{length(workflows)}")
     children = Supervisor.which_children(FpLab4.Supervisor)

@@ -38,6 +38,7 @@ defmodule FpLab4.MixProject do
       {:jason, "~> 1.4"},
       {:yaml_elixir, "~> 2.9"},
       {:plug_cowboy, "~> 2.6"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:plug, "~> 1.14"},
       {:mock, "~> 0.3.0", only: :test},
       {:ex_doc, "~> 0.30", only: :dev, runtime: false}

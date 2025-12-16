@@ -45,19 +45,24 @@ defmodule Workflows.Registry do
 
   def handle_call({:register, name, pid}, _from, state) do
     # Удаляем старую регистрацию, если существует
-    new_state = case Map.get(state.name_to_pid, name) do
-      nil -> state
-      old_pid ->
-        %{state |
-          processes: Map.delete(state.processes, old_pid),
-          pid_to_name: Map.delete(state.pid_to_name, old_pid)
-        }
-    end
+    new_state =
+      case Map.get(state.name_to_pid, name) do
+        nil ->
+          state
 
-    new_state = %{new_state |
-      processes: Map.put(new_state.processes, pid, %{name: name, pid: pid}),
-      name_to_pid: Map.put(new_state.name_to_pid, name, pid),
-      pid_to_name: Map.put(new_state.pid_to_name, pid, name)
+        old_pid ->
+          %{
+            state
+            | processes: Map.delete(state.processes, old_pid),
+              pid_to_name: Map.delete(state.pid_to_name, old_pid)
+          }
+      end
+
+    new_state = %{
+      new_state
+      | processes: Map.put(new_state.processes, pid, %{name: name, pid: pid}),
+        name_to_pid: Map.put(new_state.name_to_pid, name, pid),
+        pid_to_name: Map.put(new_state.pid_to_name, pid, name)
     }
 
     # Мониторим процесс
@@ -77,12 +82,15 @@ defmodule Workflows.Registry do
     case Map.get(state.name_to_pid, name) do
       nil ->
         {:reply, :ok, state}
+
       pid ->
-        new_state = %{state |
-          processes: Map.delete(state.processes, pid),
-          name_to_pid: Map.delete(state.name_to_pid, name),
-          pid_to_name: Map.delete(state.pid_to_name, pid)
+        new_state = %{
+          state
+          | processes: Map.delete(state.processes, pid),
+            name_to_pid: Map.delete(state.name_to_pid, name),
+            pid_to_name: Map.delete(state.pid_to_name, pid)
         }
+
         {:reply, :ok, new_state}
     end
   end
@@ -101,12 +109,15 @@ defmodule Workflows.Registry do
     case Map.get(state.pid_to_name, pid) do
       nil ->
         {:noreply, state}
+
       name ->
-        new_state = %{state |
-          processes: Map.delete(state.processes, pid),
-          name_to_pid: Map.delete(state.name_to_pid, name),
-          pid_to_name: Map.delete(state.pid_to_name, pid)
+        new_state = %{
+          state
+          | processes: Map.delete(state.processes, pid),
+            name_to_pid: Map.delete(state.name_to_pid, name),
+            pid_to_name: Map.delete(state.pid_to_name, pid)
         }
+
         {:noreply, new_state}
     end
   end

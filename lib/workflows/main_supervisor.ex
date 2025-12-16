@@ -19,12 +19,13 @@ defmodule Workflows.MainSupervisor do
         child_spec = {Workflows.WorkflowExecutor, {workflow_name, workflow}}
 
         case DynamicSupervisor.start_child(
-          Workflows.WorkflowDynamicSupervisor,
-          child_spec
-        ) do
+               Workflows.WorkflowDynamicSupervisor,
+               child_spec
+             ) do
           {:ok, pid} ->
             Workflows.Registry.register(workflow_name, pid)
             {:ok, pid}
+
           {:error, reason} ->
             {:error, reason}
         end

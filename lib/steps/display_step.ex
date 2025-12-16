@@ -1,5 +1,4 @@
 defmodule FpLab4.Steps.DisplayStep do
-
   def print_summary(params, context) do
     report = get_input(params["report"], context)
 
@@ -17,5 +16,6 @@ defmodule FpLab4.Steps.DisplayStep do
     key = String.trim_trailing(rest, "}}") |> String.to_atom()
     Map.get(context, key)
   end
+
   defp get_input(value, _context), do: value
 end
