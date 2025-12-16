@@ -9,14 +9,7 @@ defmodule Workflows.Interpolator do
 
     case Regex.run(~r/^\{\{\s*([^}]+)\s*\}\}$/, trimmed) do
       [_, expr] ->
-        case get_nested_value(expr, context) do
-          nil -> ""
-          val when is_binary(val) -> val
-          val when is_number(val) -> to_string(val)
-          val when is_list(val) -> inspect(val)
-          val when is_map(val) -> inspect(val)
-          val -> inspect(val)
-        end
+        handle_single_expression(expr, context)
 
       _ ->
         interpolate_string(value, context)
@@ -38,6 +31,17 @@ defmodule Workflows.Interpolator do
   end
 
   def interpolate(value, _context), do: value
+
+  defp handle_single_expression(expr, context) do
+    case get_nested_value(expr, context) do
+      nil -> ""
+      val when is_binary(val) -> val
+      val when is_number(val) -> to_string(val)
+      val when is_list(val) -> inspect(val)
+      val when is_map(val) -> inspect(val)
+      val -> inspect(val)
+    end
+  end
 
   defp interpolate_string(string, context) do
     string
@@ -99,27 +103,29 @@ defmodule Workflows.Interpolator do
 
   defp interpolate_expressions(string, context) do
     Regex.replace(~r/\{\{\s*([^}]+)\s*\}\}/, string, fn _match, expr ->
-      case evaluate_expression(expr, context) do
-        {:ok, result} ->
-          to_string(result)
-
-        :error ->
-          case get_nested_value(expr, context) do
-            nil ->
-              "{{#{expr}}}"
-
-            value ->
-              case value do
-                v when is_binary(v) -> v
-                v when is_number(v) -> to_string(v)
-                v when is_list(v) -> inspect(v)
-                v when is_map(v) -> inspect(v)
-                v -> inspect(v)
-              end
-          end
-      end
+      handle_expression(expr, context)
     end)
   end
+
+  defp handle_expression(expr, context) do
+    case evaluate_expression(expr, context) do
+      {:ok, result} -> to_string(result)
+      :error -> handle_missing_expression(expr, context)
+    end
+  end
+
+  defp handle_missing_expression(expr, context) do
+    case get_nested_value(expr, context) do
+      nil -> "{{#{expr}}}"
+      value -> format_value(value)
+    end
+  end
+
+  defp format_value(value) when is_binary(value), do: value
+  defp format_value(value) when is_number(value), do: to_string(value)
+  defp format_value(value) when is_list(value), do: inspect(value)
+  defp format_value(value) when is_map(value), do: inspect(value)
+  defp format_value(value), do: inspect(value)
 
   defp evaluate_expression(expr, context) do
     if contains_operator?(expr) do
@@ -158,26 +164,34 @@ defmodule Workflows.Interpolator do
     path
     |> String.trim()
     |> String.split(".")
-    |> Enum.reduce(context, fn
-      segment, acc when is_map(acc) ->
-        case Regex.run(~r/([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]/, segment) do
-          [_, array_name, index_str] ->
-            array = get_from_context(array_name, acc)
+    |> Enum.reduce_while(context, &process_segment/2)
+  end
 
-            if is_list(array) do
-              index = String.to_integer(index_str)
-              if index < length(array), do: Enum.at(array, index), else: nil
-            else
-              nil
-            end
+  defp process_segment(segment, acc) when is_map(acc) do
+    case parse_segment(segment) do
+      {:array, name, index} -> handle_array_segment(name, index, acc)
+      {:field, name} -> {:cont, get_from_context(name, acc)}
+      _ -> {:halt, nil}
+    end
+  end
 
-          nil ->
-            get_from_context(segment, acc)
-        end
+  defp process_segment(_, _), do: {:halt, nil}
 
-      _, _ ->
-        nil
-    end)
+  defp handle_array_segment(name, index, acc) do
+    case get_from_context(name, acc) do
+      array when is_list(array) and index < length(array) ->
+        {:cont, Enum.at(array, index)}
+
+      _ ->
+        {:halt, nil}
+    end
+  end
+
+  defp parse_segment(segment) do
+    case Regex.run(~r/([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]/, segment) do
+      [_, name, index_str] -> {:array, name, String.to_integer(index_str)}
+      nil -> {:field, segment}
+    end
   end
 
   defp get_from_context(key, context) do

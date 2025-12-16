@@ -66,43 +66,43 @@ defmodule Workflows.CLI do
 
   defp process_interactive_command(line) do
     args = parse_interactive_line(line)
+    handle_command(args, line)
+  end
 
-    case args do
-      [] ->
-        :ok
+  defp handle_command([], _), do: :ok
 
-      ["help" | _] ->
-        print_help()
+  defp handle_command(["help" | _], _) do
+    print_help()
+  end
 
-      ["list" | _] ->
-        list_workflows()
+  defp handle_command(["list" | _], _) do
+    list_workflows()
+  end
 
-      ["status", name] ->
-        get_status(name)
+  defp handle_command(["status", name], _) do
+    get_status(name)
+  end
 
-      ["stop", name] ->
-        stop_workflow(name)
+  defp handle_command(["stop", name], _) do
+    stop_workflow(name)
+  end
 
-      ["run", name, file_path] ->
-        run_workflow(name, file_path)
+  defp handle_command(["run", name, file_path], _) do
+    run_workflow(name, file_path)
+  end
 
-      ["run", _name, _file_path | rest] when rest != [] and length(rest) > 0 ->
-        IO.puts("Лишние аргументы: #{inspect(rest)}")
-        IO.puts("Использование: run <name> <file_path>")
+  defp handle_command(["run", _name, _file_path | rest], _) when rest != [] do
+    IO.puts("Лишние аргументы: #{inspect(rest)}")
+    IO.puts("Использование: run <name> <file_path>")
+  end
 
-      ["debug"] ->
-        show_debug_info()
+  defp handle_command(["debug"], _) do
+    show_debug_info()
+  end
 
-      _ ->
-        case parse_args(args) do
-          {opts, _, []} ->
-            dispatch_command({opts, [], []}, true)
-
-          _ ->
-            IO.puts("Неизвестная команда: #{line}")
-            IO.puts("Введите 'help' для списка команд")
-        end
-    end
+  defp handle_command(_, line) do
+    IO.puts("Неизвестная команда: #{line}")
+    IO.puts("Введите 'help' для списка команд")
   end
 
   defp parse_interactive_line(line) do
@@ -143,77 +143,140 @@ defmodule Workflows.CLI do
   end
 
   defp dispatch_command({opts, _, _}, interactive) do
-    cond do
-      opts[:help] ->
+    case get_command_action(opts) do
+      {:execute, :help} ->
         print_help()
         :ok
 
-      opts[:list] ->
+      {:execute, :list} ->
         list_workflows()
         :ok
 
-      opts[:status] && opts[:status] != "" ->
-        get_status(opts[:status])
+      {:execute, {:status, name}} ->
+        get_status(name)
         :ok
 
-      opts[:stop] && opts[:stop] != "" ->
-        stop_workflow(opts[:stop])
+      {:execute, {:stop, name}} ->
+        stop_workflow(name)
         :ok
 
-      opts[:workflow] && opts[:file] ->
-        run_workflow(opts[:workflow], opts[:file])
+      {:execute, {:run, name, file}} ->
+        run_workflow(name, file)
         :ok
+
+      {:error, :invalid_args} ->
+        print_error("Некорректные аргументы команды", interactive)
+
+      {:error, :unknown_command} ->
+        print_error("Неизвестная команда", interactive)
+
+      _ ->
+        print_error("Неизвестная команда", interactive)
+    end
+  end
+
+  defp get_command_action(opts) do
+    cond do
+      opts[:help] ->
+        {:execute, :help}
+
+      opts[:list] ->
+        {:execute, :list}
+
+      has_valid_status?(opts) ->
+        {:execute, {:status, opts[:status]}}
+
+      has_valid_stop?(opts) ->
+        {:execute, {:stop, opts[:stop]}}
+
+      has_valid_run?(opts) ->
+        {:execute, {:run, opts[:workflow], opts[:file]}}
+
+      has_partial_args?(opts) ->
+        {:error, :invalid_args}
 
       true ->
-        if interactive do
-          IO.puts("Неизвестная команда. Введите 'help' для справки")
-        else
-          print_help()
-        end
-
-        :error
+        {:error, :unknown_command}
     end
+  end
+
+  defp has_valid_status?(opts) do
+    is_binary(opts[:status]) and opts[:status] != ""
+  end
+
+  defp has_valid_stop?(opts) do
+    is_binary(opts[:stop]) and opts[:stop] != ""
+  end
+
+  defp has_valid_run?(opts) do
+    is_binary(opts[:workflow]) and is_binary(opts[:file])
+  end
+
+  defp has_partial_args?(opts) do
+    opts[:status] != nil or opts[:stop] != nil or
+      opts[:workflow] != nil or opts[:file] != nil
+  end
+
+  defp print_error(message, interactive) do
+    if interactive do
+      IO.puts("#{message}. Введите 'help' для справки")
+    else
+      print_help()
+    end
+
+    :error
   end
 
   defp run_workflow(name, file_path) do
     IO.puts("Запуск workflow: #{name} из #{file_path}")
 
-    case File.read(file_path) do
-      {:ok, content} ->
-        case Parser.parse_workflow(content) do
-          {:ok, workflow} ->
-            case WorkflowExecutor.start_link({name, workflow}) do
-              {:ok, pid} ->
-                IO.puts("Workflow '#{name}' успешно запущен")
-                IO.puts("PID: #{inspect(pid)}")
-
-                Process.sleep(500)
-
-                case Registry.lookup(name) do
-                  [{pid, _}] ->
-                    status = WorkflowExecutor.get_status(pid)
-                    print_workflow_details(name, status)
-
-                  [] ->
-                    IO.puts("Workflow не найден в реестре")
-                end
-
-                :ok
-
-              {:error, reason} ->
-                IO.puts("Ошибка выполнения Workflow: #{inspect(reason)}")
-                :error
-            end
-
-          {:error, reason} ->
-            IO.puts("Ошибка парсинга Workflow: #{reason}")
-            :error
-        end
-
+    with {:ok, content} <- File.read(file_path),
+         {:ok, workflow} <- Parser.parse_workflow(content),
+         {:ok, pid} <- WorkflowExecutor.start_link({name, workflow}) do
+      handle_successful_workflow_start(name, pid)
+    else
       {:error, reason} ->
-        IO.puts("Ошибка чтения файла: #{reason}")
-        :error
+        handle_workflow_error(reason)
     end
+  end
+
+  defp handle_successful_workflow_start(name, pid) do
+    IO.puts("Workflow '#{name}' успешно запущен")
+    IO.puts("PID: #{inspect(pid)}")
+
+    Process.sleep(500)
+    get_and_display_workflow_status(name)
+  end
+
+  defp get_and_display_workflow_status(name) do
+    case Registry.lookup(name) do
+      [{pid, _}] ->
+        status = WorkflowExecutor.get_status(pid)
+        print_workflow_details(name, status)
+
+      [] ->
+        IO.puts("Workflow не найден в реестре")
+    end
+
+    :ok
+  end
+
+  defp handle_workflow_error(reason) do
+    case reason do
+      {:file_error, msg} ->
+        IO.puts("Ошибка чтения файла: #{msg}")
+
+      {:parse_error, msg} ->
+        IO.puts("Ошибка парсинга Workflow: #{msg}")
+
+      {:execution_error, msg} ->
+        IO.puts("Ошибка выполнения Workflow: #{inspect(msg)}")
+
+      _ ->
+        IO.puts("Ошибка: #{inspect(reason)}")
+    end
+
+    :error
   end
 
   defp list_workflows() do
@@ -224,19 +287,21 @@ defmodule Workflows.CLI do
     if Enum.empty?(workflows) do
       IO.puts("   Нет запущенных workflows")
     else
-      Enum.each(workflows, fn %{name: name, pid: pid} ->
-        case WorkflowExecutor.get_status(pid) do
-          %{status: status, started_at: started_at} ->
-            runtime = DateTime.diff(DateTime.utc_now(), started_at)
-            IO.puts("   #{name}: #{status} (запущен #{runtime} секунд назад)")
-
-          _ ->
-            IO.puts("   #{name}: статус неизвестен")
-        end
-      end)
+      Enum.each(workflows, &print_workflow_status/1)
     end
 
     :ok
+  end
+
+  defp print_workflow_status(%{name: name, pid: pid}) do
+    case WorkflowExecutor.get_status(pid) do
+      %{status: status, started_at: started_at} ->
+        runtime = DateTime.diff(DateTime.utc_now(), started_at)
+        IO.puts("   #{name}: #{status} (запущен #{runtime} секунд назад)")
+
+      _ ->
+        IO.puts("   #{name}: статус неизвестен")
+    end
   end
 
   defp get_status(name) do
@@ -273,7 +338,6 @@ defmodule Workflows.CLI do
 
   defp print_workflow_details(name, status) do
     IO.puts("\nСтатус workflow: #{name}")
-
     IO.puts("Состояние: #{status.status}")
     IO.puts("Запущен: #{format_datetime(status.started_at)}")
 
@@ -290,7 +354,7 @@ defmodule Workflows.CLI do
 
     if status.context do
       IO.puts("\nКонтекст (первые 5 ключей):")
-      keys = Map.keys(status.context) |> Enum.take(5) |> Enum.map(&inspect/1) |> Enum.join(", ")
+      keys = Map.keys(status.context) |> Enum.take(5) |> Enum.map_join(", ", &inspect/1)
       IO.puts("   #{keys}")
     end
   end

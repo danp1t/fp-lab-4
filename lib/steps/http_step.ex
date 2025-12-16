@@ -18,35 +18,55 @@ defmodule FpLab4.Steps.HttpStep do
 
     Logger.info("HttpStep: Making #{method} request to #{url}")
 
-    response =
-      case method do
-        :get -> HTTPoison.get(url, headers)
-        :post -> HTTPoison.post(url, Jason.encode!(body), headers)
-        :put -> HTTPoison.put(url, Jason.encode!(body), headers)
-        :delete -> HTTPoison.delete(url, headers)
-      end
+    response = make_request(method, url, headers, body)
+    handle_response(response)
+  end
 
-    Logger.info("HttpStep: Response received")
+  defp make_request(:get, url, headers, _body), do: HTTPoison.get(url, headers)
 
-    case response do
-      {:ok, %HTTPoison.Response{status_code: code, body: body}} when code in 200..299 ->
-        case Jason.decode(body) do
-          {:ok, parsed_body} ->
-            Logger.info("HttpStep: Success! Returning data")
-            parsed_body
+  defp make_request(:post, url, headers, body),
+    do: HTTPoison.post(url, Jason.encode!(body), headers)
 
-          {:error, error} ->
-            Logger.error("HttpStep: Failed to parse JSON")
-            {:error, "Failed to parse JSON: #{inspect(error)}"}
-        end
+  defp make_request(:put, url, headers, body),
+    do: HTTPoison.put(url, Jason.encode!(body), headers)
 
-      {:ok, %HTTPoison.Response{status_code: code, body: body}} ->
-        Logger.error("HttpStep: Error status #{code}")
-        {:error, "HTTP #{code}: #{body}"}
+  defp make_request(:delete, url, headers, _body), do: HTTPoison.delete(url, headers)
 
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        Logger.error("HttpStep: HTTP error")
-        {:error, "HTTP request failed: #{inspect(reason)}"}
+  defp make_request(_method, _url, _headers, _body),
+    do: {:error, %HTTPoison.Error{reason: :invalid_method}}
+
+  defp handle_response({:ok, %HTTPoison.Response{status_code: code, body: body}}) do
+    handle_status_code(code, body)
+  end
+
+  defp handle_response({:error, %HTTPoison.Error{reason: reason}}) do
+    Logger.error("HttpStep: HTTP error")
+    {:error, "HTTP request failed: #{inspect(reason)}"}
+  end
+
+  defp handle_response({:error, reason}) do
+    Logger.error("HttpStep: HTTP error")
+    {:error, "HTTP request failed: #{inspect(reason)}"}
+  end
+
+  defp handle_status_code(code, _body) when code < 200 or code >= 300 do
+    Logger.error("HttpStep: Error status #{code}")
+    {:error, "HTTP #{code}"}
+  end
+
+  defp handle_status_code(_code, body) do
+    parse_json_response(body)
+  end
+
+  defp parse_json_response(body) do
+    case Jason.decode(body) do
+      {:ok, parsed_body} ->
+        Logger.info("HttpStep: Success! Returning data")
+        parsed_body
+
+      {:error, error} ->
+        Logger.error("HttpStep: Failed to parse JSON")
+        {:error, "Failed to parse JSON: #{inspect(error)}"}
     end
   end
 
