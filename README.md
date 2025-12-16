@@ -207,7 +207,7 @@ mix run cli.exs
   status <name>        - Показать статус workflow
   run <name> <file>    - Запустить workflow
   clear                - Очистить экран
-  exit/quit            - Выйти из интерактивного режима
+  exit                 - Выйти из интерактивного режима
 
 Примеры:
   run test workflows/test_workflow.yml
